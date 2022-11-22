@@ -5,7 +5,7 @@ def hex_to_rgb(value):
     return tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
 
 
-def rgb_to_hex(red, green, blue):
+def rgb_to_hex(red, green, blue) -> str:
     """Return color as #rrggbb for the given color values."""
     return '#%02x%02x%02x' % (red, green, blue)
 
@@ -21,6 +21,7 @@ def create_color(agent, hex=True):
     if hex:
         return rgb_to_hex(*color)
 
+
 def agent_portrayal(agent):
     portrayal = {
         "Shape": "rect",
@@ -28,23 +29,30 @@ def agent_portrayal(agent):
         "Filled": "true",
         "Layer": 0,
         "w": 1,
-        "h": 1}
-    if agent.name.startswith("A"):
+        "h": 1,
+        "text": agent.pos,
+        "text_color": "black"
+    }
+    if agent.name.startswith("Leader"):
         portrayal = {
             "Shape": "circle",
             "Color": agent.color,
             "Filled": "true",
             "Layer": 1,
-            "r": 0.5
+            "r": 0.8,
+            "text": agent.unique_id,
+            "text_color": "black"
         }
 
-    if agent.name.startswith("F"):
+    if agent.name.startswith("Follower"):
         portrayal = {
             "Shape": "circle",
             "Color": agent.color,
             "Filled": "true",
             "Layer": 2,
-            "r": 0.5
+            "r": 0.8,
+            "text": agent.unique_id,
+            "text_color": "white"
         }
 
     return portrayal
