@@ -30,8 +30,10 @@ class Cell(Agent):
             if not self.winner.head:
                 self.winner.move(self)
                 self.agent = self.winner
+                self.evacuate()
                 self.winner = None
             elif self.winner.head == self.winner.tail:
+                self.evacuate()
                 self.winner.head = None
                 self.winner.tail.tail = None
                 self.winner.tail.head = None
@@ -41,6 +43,7 @@ class Cell(Agent):
                 a.cell.advance()
                 b.move(self)
                 self.agent = b
+                self.evacuate()
                 self.winner = None
 
     def update_color(self, value):
@@ -63,8 +66,13 @@ class Cell(Agent):
         return self.agent
 
     def evacuate(self):
+        if self != self.model.cell_gate:
+            return
         if not self.agent:
-            raise ValueError("Tried to evacuate empty exit.")
-        agent = self.agent
+            raise ValueError("Empty evacuation.")
+        if self.agent.name.startswith("Follower"):
+            self.model.n_evacuated_followers += 1
+        else:
+            self.model.n_evacuated_leaders += 1
+        self.model.schedule.remove_agent(self.agent)
         self.agent = None
-        return agent

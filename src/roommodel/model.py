@@ -22,9 +22,10 @@ class RoomModel(mesa.Model):
         self.gate = gate
         self.room = create_grid(width, height)
         self.uid_ctr = 0
-        self.goals = [AreaGoal(self, [(5, 5), (10, 8)], target="All"),
-                      AreaGoal(self, [(13, 13), (13, 13)], target="All"),
-                      AreaGoal(self, [(2, 5), (4, 10)], target="All"),
+        self.goals = [
+                      # AreaGoal(self, [(5, 5), (10, 8)], target="All"),
+                      # AreaGoal(self, [(13, 13), (13, 13)], target="All"),
+                      # AreaGoal(self, [(2, 5), (4, 10)], target="All"),
                       GateGoal(self, self.gate, target="All")]
 
         self.leader_positions = [(11, 3)]
@@ -74,16 +75,6 @@ class RoomModel(mesa.Model):
                 self.sff_update(self.current_goal().area, "Leader")
         if self.running:
             self.schedule.step()
-        self.evacuate()
-
-    def evacuate(self):
-        if self.cell_gate.agent:
-            agent = self.cell_gate.evacuate()
-            if agent.name.startswith("Follower"):
-                self.n_evacuated_followers += 1
-            else:
-                self.n_evacuated_leaders += 1
-            self.schedule.remove(agent)
 
     def current_goal(self) -> Goal:
         return self.goals[0]

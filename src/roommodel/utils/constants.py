@@ -1,3 +1,16 @@
+from enum import IntEnum
+
+
+class ORIENTATION(IntEnum):
+    NORTH = 0
+    EAST = 1
+    SOUTH = 2
+    WEST = 3
+
+    def __repr__(self):
+        return self.name
+
+
 AREA_STATIC_BOOSTER = 5
 PAIR_DISTANCE_THRESHOLD = 2.0
 

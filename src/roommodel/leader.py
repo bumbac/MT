@@ -11,7 +11,7 @@ class LeaderAgent(FollowerAgent):
         self.name = "Leader: " + self.name
         self.color = create_color(self)
 
-    def step(self):
+    def step(self) -> None:
         sff = self.model.sff["Leader"]
         self.select_cell(sff)
 

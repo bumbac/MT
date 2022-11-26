@@ -8,8 +8,10 @@ class Agent(mesa.Agent):
     def __init__(self, uid, model):
         super().__init__(uid, model)
         self.name = str(uid)
-        self.model = model
         self.color = create_color(self)
+        self.head = None
+        self.tail = None
+        self.cell = None
 
     def select_cell(self, sff):
         values = []
@@ -27,6 +29,18 @@ class Agent(mesa.Agent):
 
     def update_color(self, value):
         self.color = create_color(self)
+
+    def move(self, cell):
+        self.model.grid.move_agent(self, cell.pos)
+        # prev cell
+        prev_cell = self.cell
+        self.cell.leave()
+        # current cell
+        self.cell = cell
+        if self.tail:
+            self.tail.head = None
+            prev_cell.advance()
+            self.tail = None
 
     def __repr__(self):
         return self.name + " " + str(self.pos)
