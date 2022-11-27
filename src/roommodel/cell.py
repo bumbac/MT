@@ -19,8 +19,10 @@ class Cell(Agent):
     def step(self):
         if len(self.q) > 0:
             self.winner = self.q[0]
+            # winner can be cancelled
+            self.winner.inform()
             self.q = []
-            if self.agent:
+            if self.agent and self.winner:
                 self.winner.head = self.agent
                 self.agent.tail = self.winner
 
@@ -29,9 +31,7 @@ class Cell(Agent):
         if self.winner:
             if not self.winner.head:
                 self.winner.move(self)
-                self.agent = self.winner
                 self.evacuate()
-                self.winner = None
             elif self.winner.head == self.winner.tail:
                 self.evacuate()
                 self.winner.head = None
@@ -42,9 +42,7 @@ class Cell(Agent):
                 b = self.winner
                 a.cell.advance()
                 b.move(self)
-                self.agent = b
                 self.evacuate()
-                self.winner = None
 
     def update_color(self, value):
         color = [0, 255, 255]

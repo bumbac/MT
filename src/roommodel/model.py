@@ -5,6 +5,8 @@ import mesa
 
 from .leader import LeaderAgent
 from .follower import FollowerAgent
+from .directed import DirectedAgent
+from .partner import DirectedPartnerAgent
 from .cell import Cell
 from .scheduler import SequentialActivation
 from .goal import Goal, AreaGoal, GateGoal
@@ -30,6 +32,8 @@ class RoomModel(mesa.Model):
 
         self.leader_positions = [(11, 3)]
         self.follower_positions = [(12, 3), (12, 2), (13, 3)]#, (12, 4), (13, 2), (13, 4)]
+        self.directed_positions = []
+        self.directed_pairs_positions = []#(12, 3), (12, 2), (13, 3), (13, 2)]
         self.n_evacuated_followers = 0
         self.n_evacuated_leaders = 0
         self.sff = {}
@@ -50,6 +54,7 @@ class RoomModel(mesa.Model):
             self.grid.place_agent(a, coords)
             self.schedule.add(a)
             a.cell = self.grid[x][y][0]
+            a.next_cell = a.cell
             self.sff_update([coords, coords], "Follower")
             self.sff_update(self.current_goal().area, "Leader")
 
@@ -60,13 +65,39 @@ class RoomModel(mesa.Model):
             self.grid.place_agent(a, coords)
             self.schedule.add(a)
             a.cell = self.grid[x][y][0]
+            a.next_cell = a.cell
+
+        # directed
+        for coords in self.directed_positions:
+            x, y = coords
+            a = DirectedAgent(self.generate_uid(), self)
+            self.grid.place_agent(a, coords)
+            self.schedule.add(a)
+            a.cell = self.grid[x][y][0]
+            a.next_cell = a.cell
+
+        # pairs
+        for i, coords in enumerate(self.directed_pairs_positions[::2]):
+            x, y = coords
+            px, py = self.directed_pairs_positions[i * 2 + 1]
+            leader = DirectedPartnerAgent(self.generate_uid(), self)
+            partner = DirectedPartnerAgent(self.generate_uid(), self)
+            self.grid.place_agent(leader, coords)
+            self.grid.place_agent(partner, (px, py))
+            self.schedule.add(leader)
+            self.schedule.add(partner)
+            leader.cell = leader.next_cell = self.grid[x][y][0]
+            partner.cell = partner.next_cell = self.grid[px][py][0]
+            leader.add_partner(partner)
 
         for a in self.schedule.agent_buffer():
             cell = a.cell
-            self.schedule.add(cell)
+            self.schedule.add_cell(cell)
             cell.enter(a)
             cell.step()
+            a.next_cell = cell
             cell.advance()
+            self.schedule.removed_cells: dict[int, mesa.Agent] = {}
 
     def step(self):
         print("-----------")

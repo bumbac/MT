@@ -12,6 +12,10 @@ class Agent(mesa.Agent):
         self.head = None
         self.tail = None
         self.cell = None
+        self.next_cell = None
+
+    def inform(self):
+        pass
 
     def select_cell(self, sff):
         values = []
@@ -24,6 +28,7 @@ class Agent(mesa.Agent):
         choice = np.argmin(values)
         coords = c[choice]
         cell = self.model.grid[coords[0]][coords[1]][0]
+        self.next_cell = cell
         cell.enter(self)
         return cell
 
@@ -34,9 +39,12 @@ class Agent(mesa.Agent):
         self.model.grid.move_agent(self, cell.pos)
         # prev cell
         prev_cell = self.cell
+        self.next_cell = None
         self.cell.leave()
         # current cell
         self.cell = cell
+        self.cell.agent = self
+        self.cell.winner = None
         if self.tail:
             self.tail.head = None
             prev_cell.advance()

@@ -3,6 +3,7 @@ import numpy as np
 
 from .directed import DirectedAgent
 from .utils.constants import ORIENTATION
+from .utils.portrayal import create_color
 
 
 class DirectedPartnerAgent(DirectedAgent):
@@ -11,7 +12,6 @@ class DirectedPartnerAgent(DirectedAgent):
         self.partner = None
         self.name = "Follower Pair: " + self.name
         self.leader = True
-        self.moved = False
 
     def step(self) -> None:
         # agent is partner
@@ -20,9 +20,30 @@ class DirectedPartnerAgent(DirectedAgent):
         # agent is single
         if not self.partner:
             super().step()
-
         sff = self.model.sff["Follower"]
-        leader_cell, partner_cell = self.select_cell(sff)
+        self.select_cell(sff)
+
+    def test_enter(self):
+        # leader and partner will both enter desired cell
+        if self.partner.next_cell.winner == self.partner:
+            self.model.schedule.add_cell(self.partner.next_cell)
+            return
+        # leader can enter, partner not, cancel leader winner
+        else:
+            self.cell.winner = None
+            self.next_cell = None
+            self.partner.next_cell = None
+            return
+
+    def inform(self):
+        if self.partner:
+            if self.partner.next_cell:
+                if self.partner.next_cell.winner:
+                    self.test_enter()
+                else:
+                    self.partner.next_cell.step()
+                    self.test_enter()
+        return
 
     def select_cell(self, sff):
         values = []
@@ -40,25 +61,31 @@ class DirectedPartnerAgent(DirectedAgent):
         choice = np.argmin(values)
         coords = c[choice]
         leader_cell = self.model.grid[coords[0]][coords[1]][0]
+        self.next_cell = leader_cell
         leader_cell.enter(self)
         p_coords = self.partner_coords(leader=coords, np_coords=False)
         partner_cell = self.model.grid[p_coords[0]][p_coords[1]][0]
+        self.partner.next_cell = partner_cell
         partner_cell.enter(self.partner)
         return leader_cell, partner_cell
 
     def move(self, cell):
         if not self.leader:
+            if self.partner.next_cell:
+                super().move(cell)
             return
         if not self.partner:
             super().move(cell)
             return
-        p_coords = self.partner_coords(leader=cell.pos, np_coords=False)
-        p_cell = self.model.grid[p_coords[0]][p_coords[1]][0]
-        if p_cell.winner != self.partner:
+        p_cell = self.partner.next_cell
+        if not p_cell:
             return
+        else:
+            if p_cell.winner != self.partner:
+                return
+            else:
+                p_cell.advance()
         super().move(cell)
-
-
 
     def add_partner(self, partner):
         if self.partner:
@@ -71,8 +98,10 @@ class DirectedPartnerAgent(DirectedAgent):
         partner.partner = self
         self.leader = True
         self.partner.leader = False
-        self.name = self.name + partner.unique_uid
-        partner.name = partner.name + self.unique_id
+        self.name = self.name + " " + str(partner.unique_id)
+        partner.name = partner.name + " " + str(self.unique_id)
+        self.color = create_color(self)
+        partner.color = self.color
         position = ORIENTATION.NORTH
         sx, sy = self.pos
         px, py = partner.pos
@@ -87,7 +116,7 @@ class DirectedPartnerAgent(DirectedAgent):
         # NORTH
         # LEADER PARTNER
         # partner is on the right side of leader
-        self.orientation = (len(ORIENTATION) + position - 1) % len(ORIENTATION)
+        self.orientation = ORIENTATION((len(ORIENTATION) + position - 1) % len(ORIENTATION))
         partner.orientation = self.orientation
 
     def partner_coords(self, leader=None, np_coords=True):

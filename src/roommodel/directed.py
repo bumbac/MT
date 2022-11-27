@@ -9,27 +9,27 @@ from .utils.constants import ORIENTATION
 class DirectedAgent(Agent):
     def __init__(self, uid, model):
         super().__init__(uid, model)
+        self.name = "Directed " + self.name
         self.orientation = ORIENTATION.NORTH
+        self.heading = [0, 0]
 
     def step(self) -> None:
         sff = self.model.sff["Leader"]
         self.select_cell(sff)
 
-    def change_orientation(self, cell):
+    def calculate_orientation(self, cell):
         if self.pos[0] == cell.pos[0]:
             if self.pos[1] > cell.pos[1]:
-                self.orientation = ORIENTATION.SOUTH
+                return ORIENTATION.SOUTH
             else:
-                self.orientation = ORIENTATION.NORTH
-            return
+                return ORIENTATION.NORTH
         if self.pos[0] > cell.pos[0]:
-            self.orientation = ORIENTATION.WEST
+            return ORIENTATION.WEST
         else:
-            self.orientation = ORIENTATION.EAST
-        return
+            return ORIENTATION.EAST
 
     def move(self, cell):
-        self.change_orientation(cell)
+        self.orientation = self.calculate_orientation(cell)
         super().move(cell)
 
     def update_color(self, value):

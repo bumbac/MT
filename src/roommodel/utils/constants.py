@@ -10,6 +10,16 @@ class ORIENTATION(IntEnum):
     def __repr__(self):
         return self.name
 
+    def heading(self, pos):
+        if self == ORIENTATION.NORTH:
+            return [0, 1]
+        if self == ORIENTATION.EAST:
+            return [1, 0]
+        if self == ORIENTATION.SOUTH:
+            return [0, -1]
+        if self == ORIENTATION.WEST:
+            return [-1, 0]
+
 
 AREA_STATIC_BOOSTER = 5
 PAIR_DISTANCE_THRESHOLD = 2.0
