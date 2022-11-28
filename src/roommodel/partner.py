@@ -12,8 +12,10 @@ class DirectedPartnerAgent(DirectedAgent):
         self.partner = None
         self.name = "Follower Pair: " + self.name
         self.leader = True
+        self.moved = False
 
     def step(self) -> None:
+        self.moved = False
         # agent is partner
         if not self.leader:
             return
@@ -49,9 +51,10 @@ class DirectedPartnerAgent(DirectedAgent):
         values = []
         c = []
         for coords in self.model.grid.get_neighborhood(self.pos, moore=True):
+            if sff[coords[1], coords[0]] == np.inf:
+                continue
             p_coords = self.partner_coords(leader=coords, np_coords=False)
-            cell = self.model.grid[p_coords[0]][p_coords[1]][0]
-            if cell.agent:
+            if sff[p_coords[1], p_coords[0]] == np.inf:
                 continue
             leader_sf = sff[coords[1], coords[0]]
             partner_sf = sff[p_coords]
@@ -71,21 +74,32 @@ class DirectedPartnerAgent(DirectedAgent):
 
     def move(self, cell):
         if not self.leader:
-            if self.partner.next_cell:
+            if self.partner.moved:
+                self.moved = True
                 super().move(cell)
             return
         if not self.partner:
+            self.moved = True
+            super().move(cell)
+            return
+        if self.partner.moved:
+            self.moved = True
             super().move(cell)
             return
         p_cell = self.partner.next_cell
-        if not p_cell:
-            return
-        else:
+        if p_cell:
             if p_cell.winner != self.partner:
                 return
             else:
+                self.moved = True
+                if self.cell == p_cell:
+                    self.tail = None
+                    self.partner.head = None
                 p_cell.advance()
-        super().move(cell)
+                if self.partner.moved:
+                    super().move(cell)
+                else:
+                    self.moved = False
 
     def add_partner(self, partner):
         if self.partner:
@@ -128,9 +142,9 @@ class DirectedPartnerAgent(DirectedAgent):
         if self.orientation == ORIENTATION.SOUTH:
             coords = leader[0] - 1, leader[1]
         if self.orientation == ORIENTATION.EAST:
-            coords = leader[0], leader[1] + 1
-        if self.orientation == ORIENTATION.WEST:
             coords = leader[0], leader[1] - 1
+        if self.orientation == ORIENTATION.WEST:
+            coords = leader[0], leader[1] + 1
         if np_coords:
             return coords[1], coords[0]
         return coords

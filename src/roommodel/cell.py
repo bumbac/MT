@@ -32,12 +32,11 @@ class Cell(Agent):
             if not self.winner.head:
                 self.winner.move(self)
                 self.evacuate()
-            elif self.winner.head == self.winner.tail:
+            elif self.winner.head == self.winner.tail and self.winner.head:
                 self.evacuate()
                 self.winner.head = None
-                self.winner.tail.tail = None
-                self.winner.tail.head = None
                 a = self.winner.tail
+                self.winner.tail.tail = None
                 self.winner.tail = None
                 b = self.winner
                 a.cell.advance()

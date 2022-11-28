@@ -29,6 +29,13 @@ GATE = "G"
 OBSTACLE = "#"
 GROUP = [str(i) for i in range(MAX_GROUPS)]
 EMPTY = " "
+LEADER = "L"
+FOLLOWER = "F"
+DIRECTED = "D"
+PAIR_DIRECTED = "P"
+
+EXIT_GOAL_SYMBOL = "E"
+AREA_GOAL_SYMBOL = "A"
 
 MAP_SYMBOLS = {str(i): i for i in range(MAX_GROUPS)}
 MAP_SYMBOLS[GATE] = 100

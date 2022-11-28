@@ -99,6 +99,8 @@ class GateGoal(Goal):
         if self.target == "Follower" or self.target == "All":
             n_agents += self.model.n_evacuated_followers
             n_goal += len(self.model.follower_positions)
+            n_goal += len(self.model.directed_positions)
+            n_goal += len(self.model.directed_pairs_positions)
         if self.target == "Leader" or self.target == "All":
             n_agents += self.model.n_evacuated_leaders
             n_goal += len(self.model.leader_positions)

@@ -8,32 +8,33 @@ from .follower import FollowerAgent
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 from .cell import Cell
+from .goal import Goal
 from .scheduler import SequentialActivation
-from .goal import Goal, AreaGoal, GateGoal
-
-from .utils.room import create_grid, compute_static_field, normalize_grid
+from .file_loader import FileLoader
+from .utils.room import compute_static_field, normalize_grid
 from .utils.constants import AREA_STATIC_BOOSTER
 
 
 class RoomModel(mesa.Model):
-    def __init__(self, width, height, gate):
+    def __init__(self, filename):
         super().__init__()
+        self.file_loader = FileLoader(filename)
+        width, height = self.file_loader.dimensions()
         self.schedule = SequentialActivation(self)
         self.grid = mesa.space.MultiGrid(width, height, torus=False)
         self.dimensions = (width, height)
-        self.gate = gate
-        self.room = create_grid(width, height)
+        self.gate = self.file_loader.get_gate()
+        self.room = self.file_loader.get_room()
         self.uid_ctr = 0
-        self.goals = [
-                      # AreaGoal(self, [(5, 5), (10, 8)], target="All"),
-                      # AreaGoal(self, [(13, 13), (13, 13)], target="All"),
-                      # AreaGoal(self, [(2, 5), (4, 10)], target="All"),
-                      GateGoal(self, self.gate, target="All")]
-
-        self.leader_positions = [(11, 3)]
-        self.follower_positions = [(12, 3), (12, 2), (13, 3)]#, (12, 4), (13, 2), (13, 4)]
-        self.directed_positions = []
-        self.directed_pairs_positions = []#(12, 3), (12, 2), (13, 3), (13, 2)]
+        self.goals = self.file_loader.get_goals(self)
+        self.leader_positions = self.file_loader.pos["L"]
+            #[(11, 3)]
+        self.follower_positions = self.file_loader.pos["F"]
+            #[]#(12, 3), (12, 2), (13, 3)]#, (12, 4), (13, 2), (13, 4)]
+        self.directed_positions = self.file_loader.pos["D"]
+            #[]#(12, 3), (12, 2)]#, (13, 3), (13, 2)]
+        self.directed_pairs_positions = self.file_loader.pos["P"]
+            #[(13, 3), (13, 2)]#]#(12, 3), (12, 2), (13, 3), (13, 2)]
         self.n_evacuated_followers = 0
         self.n_evacuated_leaders = 0
         self.sff = {}

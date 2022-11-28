@@ -5,13 +5,16 @@ import mesa
 
 from roommodel.model import RoomModel
 from roommodel.utils.portrayal import agent_portrayal
-if __name__ == '__main__':
-    width, height = 15, 15
-    gate = (7, 1)
+from roommodel.file_loader import FileLoader
 
+if __name__ == '__main__':
+    filename = "./maps/15.txt"
+    filename = os.path.abspath(filename)
+    fl = FileLoader(filename)
+    width, height = fl.dimensions()
     grid = mesa.visualization.CanvasGrid(agent_portrayal, width, height, 1000, 1000)
     server = mesa.visualization.ModularServer(
-        RoomModel, [grid], "Room Model SETUP", {"width": width, "height": height, "gate": gate}
+        RoomModel, [grid], "Room Model SETUP", {"filename": filename}
     )
     server.port = 8521  # The default
     server.launch()
