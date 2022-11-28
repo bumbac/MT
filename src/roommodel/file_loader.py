@@ -1,9 +1,10 @@
 import numpy as np
 import os
 
+from .cell import Cell
 from .agent import Agent
 from .follower import FollowerAgent
-from .leader import LeaderAgent
+from .leader import LeaderAgent, SwitchingAgent
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 from .goal import GateGoal, AreaGoal
@@ -26,10 +27,10 @@ class FileLoader:
                 raise ValueError("Map file is empty.")
             lines = [line.rstrip() for line in lines]
             self.width = len(lines[0])
-            y = 0
-            while y < len(lines) and lines[y][-1] == OBSTACLE:
-                y += 1
-            self.height = y
+            height = 0
+            while height < len(lines) and lines[height][-1] == OBSTACLE:
+                height += 1
+            self.height = height
             self.room = np.zeros(shape=(self.width, self.height))
             self.pos = {
                 LEADER: [],
@@ -37,16 +38,16 @@ class FileLoader:
                 DIRECTED: [],
                 PAIR_DIRECTED: []
             }
-            for _x in range(self.width):
+            for x in range(self.width):
                 for _y in range(self.height):
-                    point = lines[_y][_x]
+                    y = self.height - _y - 1
+                    point = lines[y][x]
                     if point in MAP_SYMBOLS.keys():
-                        self.room[_y, _x] = MAP_SYMBOLS[point]
+                        self.room[y, x] = MAP_SYMBOLS[point]
                         continue
                     if point in self.pos.keys():
-                        self.pos[point].append((_x, _y))
-
-            for goal_line in lines[y:]:
+                        self.pos[point].append((x, _y))
+            for goal_line in lines[height:]:
                 tokens = goal_line.split()
                 goal_symbol = tokens[0]
                 target = tokens[-1]
@@ -92,3 +93,59 @@ class FileLoader:
                 target = g[2]
                 goals_list.append(AreaGoal(model, [lt, rb], target))
         return goals_list
+
+    def place_agents(self, model, agent_type):
+        # leader
+        if agent_type == LEADER:
+            for coords in self.pos[LEADER]:
+                x, y = coords
+                a = SwitchingAgent(model.generate_uid(), model)
+                model.grid.place_agent(a, coords)
+                model.schedule.add(a)
+                a.cell = model.grid[x][y][0]
+                a.next_cell = a.cell
+                model.sff_update([coords, coords], "Follower")
+                model.sff_update(model.current_goal().area, "Leader")
+
+        if agent_type == FOLLOWER:
+            # followers
+            for coords in self.pos[FOLLOWER]:
+                x, y = coords
+                a = FollowerAgent(model.generate_uid(), model)
+                model.grid.place_agent(a, coords)
+                model.schedule.add(a)
+                a.cell = model.grid[x][y][0]
+                a.next_cell = a.cell
+        if agent_type == DIRECTED:
+            # directed
+            for coords in self.pos[DIRECTED]:
+                x, y = coords
+                a = DirectedAgent(model.generate_uid(), model)
+                model.grid.place_agent(a, coords)
+                model.schedule.add(a)
+                a.cell = model.grid[x][y][0]
+                a.next_cell = a.cell
+        if agent_type == PAIR_DIRECTED:
+            # pairs
+            for i, coords in enumerate(self.pos[PAIR_DIRECTED][::2]):
+                x, y = coords
+                px, py = self.pos[PAIR_DIRECTED][i * 2 + 1]
+                leader = DirectedPartnerAgent(model.generate_uid(), model)
+                partner = DirectedPartnerAgent(model.generate_uid(), model)
+                model.grid.place_agent(leader, coords)
+                model.grid.place_agent(partner, (px, py))
+                model.schedule.add(leader)
+                model.schedule.add(partner)
+                leader.cell = leader.next_cell = model.grid[x][y][0]
+                partner.cell = partner.next_cell = model.grid[px][py][0]
+                leader.add_partner(partner)
+
+        return self.pos[agent_type]
+
+    def place_cells(self, model):
+        for x in range(self.width):
+            for y in range(self.height):
+                coords = (x, y)
+                cell = Cell(model.generate_uid(), model, coords)
+                model.grid.place_agent(cell, coords)
+        return model.grid[self.gate[0]][self.gate[1]][0]

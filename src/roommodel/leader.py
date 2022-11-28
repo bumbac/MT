@@ -18,3 +18,23 @@ class LeaderAgent(FollowerAgent):
     def move(self, cell):
         self.model.sff_update([cell.pos, cell.pos], "Follower")
         super().move(cell)
+
+
+class SwitchingAgent(LeaderAgent):
+    def __init__(self, uid, model):
+        super().__init__(uid, model)
+        # self.name = "Switching " + self.name
+
+    def advance(self) -> None:
+        agent = self.next_cell.agent
+        if not agent:
+            return
+        if agent.head:
+            agent.head.tail = None
+        if agent.tail:
+            agent.tail.head = None
+        agent.head = None
+        agent.tail = None
+        agent.next_cell = self.cell
+        self.cell.winner = agent
+
