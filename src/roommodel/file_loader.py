@@ -31,7 +31,7 @@ class FileLoader:
             while height < len(lines) and lines[height][-1] == OBSTACLE:
                 height += 1
             self.height = height
-            self.room = np.zeros(shape=(self.width, self.height))
+            self.room = np.zeros(shape=(self.height, self.width))
             self.pos = {
                 LEADER: [],
                 FOLLOWER: [],
@@ -43,7 +43,7 @@ class FileLoader:
                     y = self.height - _y - 1
                     point = lines[y][x]
                     if point in MAP_SYMBOLS.keys():
-                        self.room[y, x] = MAP_SYMBOLS[point]
+                        self.room[_y, x] = MAP_SYMBOLS[point]
                         continue
                     if point in self.pos.keys():
                         self.pos[point].append((x, _y))
@@ -58,7 +58,6 @@ class FileLoader:
                 if goal_symbol == EXIT_GOAL_SYMBOL:
                     gate_goal = [EXIT_GOAL_SYMBOL, [lt], target]
                     self.gate = lt
-                    self.room[lt[1], lt[0]] = 100
                     self.goals.append(gate_goal)
                 if goal_symbol == AREA_GOAL_SYMBOL:
                     area_goal = [AREA_GOAL_SYMBOL, [lt, rb], target]

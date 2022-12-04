@@ -44,9 +44,9 @@ class Cell(Agent):
                 self.evacuate()
 
     def update_color(self, value):
-        color = [0, 255, 255]
+        color = [0, 255, 0]
         if 0 <= value <= 1:
-            color = [0, 255, int(255*value)]
+            color = [0, 255, 255 - int(128*value)]
         self.color = rgb_to_hex(*color)
 
     def leave(self):
@@ -55,8 +55,6 @@ class Cell(Agent):
 
     def enter(self, agent):
         self.q.append(agent)
-        if self.coords == (3, 6):
-            print(self.q)
         self.model.schedule.add_cell(self)
 
     def get_agent(self):

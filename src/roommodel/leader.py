@@ -8,7 +8,7 @@ from .follower import FollowerAgent
 class LeaderAgent(FollowerAgent):
     def __init__(self, uid, model):
         super().__init__(uid, model)
-        self.name = "Leader: " + self.name
+        self.name = "Leader: " + str(self.unique_id)
         self.color = create_color(self)
 
     def step(self) -> None:
@@ -29,8 +29,6 @@ class SwitchingAgent(LeaderAgent):
         agent = self.next_cell.agent
         if not agent:
             return
-        if agent.head:
-            agent.head.tail = None
         if agent.tail:
             agent.tail.head = None
         agent.head = None
