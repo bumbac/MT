@@ -7,7 +7,7 @@ from .goal import Goal
 from .scheduler import SequentialActivation
 from .file_loader import FileLoader
 from .utils.room import compute_static_field, normalize_grid
-from .utils.constants import AREA_STATIC_BOOSTER, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED
+from .utils.constants import AREA_STATIC_BOOSTER, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED, MAP_SYMBOLS, GATE
 
 
 class RoomModel(mesa.Model):
@@ -33,12 +33,8 @@ class RoomModel(mesa.Model):
 
         for a in self.schedule.agent_buffer():
             cell = a.cell
-            self.schedule.add_cell(cell)
-            cell.enter(a)
-            cell.step()
-            a.next_cell = cell
-            cell.advance()
-            self.schedule.removed_cells = {}
+            cell.agent = a
+            self.grid.move_agent(a, cell.pos)
 
     def step(self):
         print("-----------")
@@ -65,14 +61,17 @@ class RoomModel(mesa.Model):
 
     def sff_update(self, interest_area, key, focus=None):
         self.sff[key] = self.sff_compute(interest_area, focus)
-        # color_focus = "Follower"
-        color_focus = "Leader"
+        if self.schedule.time % 2 == 0:
+            color_focus = "Follower"
+        else:
+            color_focus = "Leader"
         if key == color_focus:
             for row in self.grid.grid:
                 for agents in row:
                     cell = agents[0]
                     np_coords = cell.coords[1], cell.coords[0]
-                    cell.update_color(self.sff[color_focus][np_coords])
+                    cell.update_color(self.sff["Follower"][np_coords])
+                    # cell.update_color(self.sff[color_focus][np_coords])
 
     def sff_compute(self, interest_area=None, focus=None):
         if not interest_area:
@@ -87,7 +86,7 @@ class RoomModel(mesa.Model):
         if focus:
             coords = focus
         np_coords = (coords[1], coords[0])
-        copy_room[np_coords] = 100
+        copy_room[np_coords] = MAP_SYMBOLS[GATE]
         static_field = compute_static_field(copy_room)
         static_field = static_field + bonus_mask
         return normalize_grid(static_field)

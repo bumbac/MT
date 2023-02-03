@@ -3,7 +3,7 @@ import mesa
 
 from .utils.portrayal import create_color
 from .follower import FollowerAgent
-
+from .directed import DirectedAgent
 
 class LeaderAgent(FollowerAgent):
     def __init__(self, uid, model):
@@ -31,8 +31,23 @@ class SwitchingAgent(LeaderAgent):
             return
         if agent.tail:
             agent.tail.head = None
+        # switching mechanism
         agent.head = None
         agent.tail = None
         agent.next_cell = self.cell
         self.cell.winner = agent
 
+
+class LeaderDirectedAgent(DirectedAgent):
+    def __init__(self, uid, model):
+        super().__init__(uid, model)
+        self.name = "Leader directed: " + str(self.unique_id)
+        self.color = create_color(self)
+
+    def step(self) -> None:
+        sff = self.model.sff["Leader"]
+        self.select_cell(sff)
+
+    def move(self, cell):
+        self.model.sff_update([cell.pos, cell.pos], "Follower")
+        super().move(cell)

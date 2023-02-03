@@ -42,13 +42,12 @@ class AreaGoal(Goal):
         tl_x, tl_y = self.area[0]
         rb_x, rb_y = self.area[1]
         for x in range(tl_x, rb_x + 1):
-            for y in range(tl_y, rb_y + 1):
+            for y in range(rb_y, tl_y + 1):
                 cell = self.model.grid[x][y][0]
                 agent = cell.get_agent()
                 if agent is None:
                     continue
-                if agent.name.startswith(agent_type):
-                    cnt += 1
+                cnt += 1
         return cnt
 
     def positions_in_area(self):
@@ -63,16 +62,16 @@ class AreaGoal(Goal):
         n_agents = 0
         n_goal = 0
         if self.target == "Follower" or self.target == "All":
-            n_agents += self.agents_in_area("Follower")
+            n_agents += self.agents_in_area("")
             n_goal += len(self.model.follower_positions)
         if self.target == "Leader" or self.target == "All":
-            n_agents += self.agents_in_area("Leader")
+            n_agents += self.agents_in_area("")
             n_goal += len(self.model.leader_positions)
         pos = self.edges[self.corner]
         cell = self.model.grid[pos[0]][pos[1]][0]
-        if cell.get_agent():
-            self.update()
-        return n_agents == n_goal or n_agents == self.n_positions
+        # if cell.get_agent() is not None:
+        #     self.update()
+        return n_agents > 0
 
     def create_edges(self):
         interest_area = self.area

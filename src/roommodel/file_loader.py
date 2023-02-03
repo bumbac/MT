@@ -4,12 +4,12 @@ import os
 from .cell import Cell
 from .agent import Agent
 from .follower import FollowerAgent
-from .leader import LeaderAgent, SwitchingAgent
+from .leader import LeaderAgent, SwitchingAgent, LeaderDirectedAgent
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 from .goal import GateGoal, AreaGoal
 from .utils.constants import MAP_SYMBOLS, OBSTACLE, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED, EXIT_GOAL_SYMBOL,\
-    AREA_GOAL_SYMBOL
+    AREA_GOAL_SYMBOL, ORIENTATION
 
 
 class FileLoader:
@@ -98,13 +98,13 @@ class FileLoader:
         if agent_type == LEADER:
             for coords in self.pos[LEADER]:
                 x, y = coords
-                a = SwitchingAgent(model.generate_uid(), model)
+                a = LeaderAgent(model.generate_uid(), model)
                 model.grid.place_agent(a, coords)
                 model.schedule.add(a)
                 a.cell = model.grid[x][y][0]
                 a.next_cell = a.cell
-                model.sff_update([coords, coords], "Follower")
                 model.sff_update(model.current_goal().area, "Leader")
+                model.sff_update([coords, coords], "Follower")
 
         if agent_type == FOLLOWER:
             # followers
@@ -115,6 +115,7 @@ class FileLoader:
                 model.schedule.add(a)
                 a.cell = model.grid[x][y][0]
                 a.next_cell = a.cell
+
         if agent_type == DIRECTED:
             # directed
             for coords in self.pos[DIRECTED]:
@@ -124,20 +125,47 @@ class FileLoader:
                 model.schedule.add(a)
                 a.cell = model.grid[x][y][0]
                 a.next_cell = a.cell
+
         if agent_type == PAIR_DIRECTED:
             # pairs
-            for i, coords in enumerate(self.pos[PAIR_DIRECTED][::2]):
-                x, y = coords
-                px, py = self.pos[PAIR_DIRECTED][i * 2 + 1]
-                leader = DirectedPartnerAgent(model.generate_uid(), model)
-                partner = DirectedPartnerAgent(model.generate_uid(), model)
-                model.grid.place_agent(leader, coords)
-                model.grid.place_agent(partner, (px, py))
-                model.schedule.add(leader)
-                model.schedule.add(partner)
-                leader.cell = leader.next_cell = model.grid[x][y][0]
-                partner.cell = partner.next_cell = model.grid[px][py][0]
-                leader.add_partner(partner)
+
+            # calculate orientation of paired agents
+            directed_agent = DirectedPartnerAgent(0, model)
+            directed_agent.pos = self.pos[PAIR_DIRECTED][0]
+            if model.leader_positions:
+                leader_pos = model.leader_positions[0]
+                directed_agent.orientation = directed_agent.calculate_orientation(leader_pos)
+            else:
+                raise ValueError("Leader needs to be placed first to calculate orientation of directed agents.")
+
+            grid = np.zeros_like(self.room)
+            no_agent_present = 0
+            agent_present = 1
+            for coords in self.pos[PAIR_DIRECTED]:
+                np_coords = coords[1], coords[0]
+                grid[np_coords] = 1
+            # def partner_coords(self, leader=None, np_coords=True):
+            partner_id = 100
+            for idx, flag in np.ndenumerate(grid):
+                if flag == no_agent_present:
+                    continue
+                if flag > agent_present:
+                    continue
+                coords = idx[1], idx[0]
+                np_partner_coords = directed_agent.partner_coords(leader=coords)
+                if grid[np_partner_coords] == agent_present:
+                    grid[idx] = partner_id
+                    grid[np_partner_coords] = partner_id
+                    partner_id += 100
+                    leader = DirectedPartnerAgent(model.generate_uid(), model)
+                    partner = DirectedPartnerAgent(model.generate_uid(), model)
+                    model.grid.place_agent(leader, coords)
+                    model.grid.place_agent(partner, (np_partner_coords[1], np_partner_coords[0]))
+                    model.schedule.add(leader)
+                    model.schedule.add(partner)
+                    leader.cell = leader.next_cell = model.grid[coords[0]][coords[1]][0]
+                    partner.cell = partner.next_cell = model.grid[np_partner_coords[1]][np_partner_coords[0]][0]
+                    leader.add_partner(partner)
 
         return self.pos[agent_type]
 

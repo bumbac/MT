@@ -7,7 +7,7 @@ from .utils.portrayal import rgb_to_hex
 
 
 class Cell(Agent):
-    def __init__(self, uid, model, coords):
+    def __init__(self, uid: int, model: mesa.Model, coords: (int, int)):
         super().__init__(uid, model)
         self.name = "Cell: " + self.name
         self.coords = coords
@@ -15,43 +15,40 @@ class Cell(Agent):
         self.winner = None
         self.q = []
 
-    # prev cell
-    def step(self):
+    def step(self) -> None:
         if len(self.q) > 0:
             self.winner = self.q[0]
-            # winner can be cancelled
-            self.winner.inform()
             self.q = []
-            if self.agent and self.winner:
+            if self.agent:
                 self.winner.head = self.agent
                 self.agent.tail = self.winner
 
-    # next cell
     def advance(self) -> None:
         if self.winner:
-            if not self.winner.head:
+            if self.winner.head:
+                if self.winner.head == self.winner.partner:
+                    self.winner.head = None
+                    self.winner.partner.tail = None
+                    self.winner.partner.next_cell.advance()
+                head = self.winner
+                if head:
+                    while head.head is not None:
+                        head = head.head
+                    if head.next_cell:
+                        head.next_cell.advance()
+                return
+            else:
+                # can be successful or unsuccessful
                 self.winner.move(self)
-                self.evacuate()
-            elif self.winner.head == self.winner.tail and self.winner.head:
-                self.evacuate()
-                self.winner.head = None
-                a = self.winner.tail
-                self.winner.tail.tail = None
-                self.winner.tail = None
-                b = self.winner
-                a.cell.advance()
-                b.move(self)
-                self.evacuate()
 
     def update_color(self, value):
         color = [0, 255, 0]
         if 0 <= value <= 1:
-            color = [0, 255, 255 - int(128*value)]
+            color = [0, 255, int(255*value)]
         self.color = rgb_to_hex(*color)
 
     def leave(self):
         self.agent = None
-        self.model.schedule.remove_cell(self)
 
     def enter(self, agent):
         self.q.append(agent)
@@ -69,5 +66,10 @@ class Cell(Agent):
             self.model.n_evacuated_followers += 1
         else:
             self.model.n_evacuated_leaders += 1
+
+        if self.agent.partner:
+            self.agent.partner.partner = None
+            self.agent.partner.leader = True
+        self.model.grid.remove_agent(self.agent)
         self.model.schedule.remove_agent(self.agent)
         self.agent = None

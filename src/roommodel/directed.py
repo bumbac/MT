@@ -18,18 +18,38 @@ class DirectedAgent(Agent):
         self.select_cell(sff)
 
     def calculate_orientation(self, cell):
-        if self.pos[0] == cell.pos[0]:
-            if self.pos[1] > cell.pos[1]:
-                return ORIENTATION.SOUTH
-            else:
-                return ORIENTATION.NORTH
-        if self.pos[0] > cell.pos[0]:
-            return ORIENTATION.WEST
-        else:
-            return ORIENTATION.EAST
+        rotation = False
+        diagonal = self.is_diagonal(cell)
+        orientation = self.orientation
+        if self.pos[0] > cell[0]:
+            if self.orientation == ORIENTATION.EAST:
+                rotation = True
+            orientation = ORIENTATION.WEST
+        if self.pos[0] < cell[0]:
+            if self.orientation == ORIENTATION.WEST:
+                rotation = True
+            orientation = ORIENTATION.EAST
+        if self.pos[1] > cell[1]:
+            if self.orientation == ORIENTATION.NORTH:
+                rotation = True
+            orientation = ORIENTATION.SOUTH
+        if self.pos[1] < cell[1]:
+            if self.orientation == ORIENTATION.SOUTH:
+                rotation = True
+            orientation = ORIENTATION.NORTH
 
-    def move(self, cell):
-        self.orientation = self.calculate_orientation(cell)
+        if diagonal and rotation:
+            x = self.pos[0] - cell[0]
+            y = self.pos[1] - cell[1]
+            return ORIENTATION((self.orientation + (x*y)) % len(ORIENTATION))
+        if rotation:
+            return ORIENTATION((self.orientation + 2) % len(ORIENTATION))
+        if diagonal:
+            return self.orientation
+        return orientation
+
+    def move(self, cell) -> None:
+        self.orientation = self.calculate_orientation(cell.pos)
         super().move(cell)
 
     def update_color(self, value):
