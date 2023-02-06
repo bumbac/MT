@@ -2,6 +2,7 @@ import mesa
 import numpy as np
 
 from .utils.portrayal import create_color
+from .utils.constants import SFF_OBSTACLE
 
 
 class Agent(mesa.Agent):
@@ -14,9 +15,6 @@ class Agent(mesa.Agent):
         self.tail = None
         self.cell = None
         self.next_cell = None
-
-    def inform(self):
-        pass
 
     def cross_obstacle(self, pos):
         # non diagonal movement
@@ -34,7 +32,7 @@ class Agent(mesa.Agent):
             corners.append((self.pos[0], self.pos[1] - 1))
 
         for x, y in corners:
-            if self.model.sff["Follower"][y][x] > 1:
+            if self.model.sff["Follower"][y][x] == SFF_OBSTACLE:
                 return True
         return False
 
@@ -44,12 +42,11 @@ class Agent(mesa.Agent):
         values = []
         c = []
         for coords in self.model.grid.get_neighborhood(self.pos, moore=True):
-            if sff[coords[1], coords[0]] == np.inf:
+            if sff[coords[1], coords[0]] == SFF_OBSTACLE:
                 continue
             if self.cross_obstacle(coords):
                 continue
-            np_coords = coords[1], coords[0]
-            static_value = sff[np_coords]
+            static_value = sff[coords[1], coords[0]]
             values.append(static_value)
             c.append(coords)
         choice = np.argmin(values)

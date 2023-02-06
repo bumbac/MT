@@ -52,8 +52,8 @@ def agent_portrayal(agent):
         portrayal = {
             "Shape": "arrowHead",
             "scale": 1,
-            "heading_x": agent.orientation.heading(agent.pos)[0],
-            "heading_y": agent.orientation.heading(agent.pos)[1],
+            "heading_x": agent.orientation.heading()[0],
+            "heading_y": agent.orientation.heading()[1],
             "Color": agent.color,
             "Filled": "true",
             "Layer": 2,
