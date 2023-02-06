@@ -2,7 +2,7 @@ import mesa
 import numpy as np
 
 from .directed import DirectedAgent
-from .utils.constants import ORIENTATION
+from .utils.constants import ORIENTATION, SFF_OBSTACLE, MANEUVERS
 from .utils.portrayal import create_color
 
 
@@ -57,31 +57,36 @@ class DirectedPartnerAgent(DirectedAgent):
                 self.moved = True
                 return
 
-    def stride(self, coords, p_coords):
-        if self.partner.cross_obstacle(p_coords):
-            pass
-        if self.cross_obstacle(coords):
-            pass
+    def dist(self, start, goal):
+        return np.abs(start[0]-goal[0]) + np.abs(start[1]-goal[1])
 
-    def left(self):
-        if self.orientation == ORIENTATION.NORTH:
-            return self.pos[0] - 1, self.pos[1]
-        if self.orientation == ORIENTATION.SOUTH:
-            return self.pos[0] + 1, self.pos[1]
-        if self.orientation == ORIENTATION.WEST:
-            return self.pos[0], self.pos[1] - 1
-        if self.orientation == ORIENTATION.EAST:
-            return self.pos[0], self.pos[1] + 1
+    def offset_maneuvers(self):
+        leader_pos = self.pos
+        partner_pos = self.partner.pos
+        maneuvers = []
+        for move in MANEUVERS[self.orientation]:
+            leader_offset, leader_orientation = move[0]
+            partner_offset, partner_orientation = move[1]
 
-    def right(self):
-        if self.orientation == ORIENTATION.NORTH:
-            return self.pos[0] + 1, self.pos[1]
-        if self.orientation == ORIENTATION.SOUTH:
-            return self.pos[0] - 1, self.pos[1]
-        if self.orientation == ORIENTATION.WEST:
-            return self.pos[0], self.pos[1] + 1
-        if self.orientation == ORIENTATION.EAST:
-            return self.pos[0], self.pos[1] - 1
+            leader_move = leader_pos[0]+leader_offset[0], leader_pos[1] + leader_offset[1]
+            partner_move = leader_pos[0]+partner_offset[0], leader_pos[1] + partner_offset[1]
+            # partner_move = partner_pos[0]+partner_offset[0], partner_pos[1] + partner_offset[1]
+
+            offset_move = (leader_move, leader_orientation), (partner_move, partner_orientation)
+
+            maneuvers.append(offset_move)
+        return maneuvers
+
+    def evaluate_maneuvers(self, maneuvers, sff):
+        choices = []
+        for move in maneuvers:
+            leader_position, orientation = move[0]
+            partner_position, orientation = move[1]
+            leader_sf = sff[leader_position[1], leader_position[0]]
+            partner_sf = sff[partner_position[1], partner_position[0]]
+            next_move = (leader_sf+partner_sf, leader_position, partner_position, orientation)
+            choices.append(next_move)
+        return sorted(choices, key=lambda x: x[0])
 
     def select_cell(self, sff):
         if not self.partner:
@@ -89,44 +94,13 @@ class DirectedPartnerAgent(DirectedAgent):
             return
         self.head = None
         self.tail = None
-        values = []
-        c = []
-        extended_neighbourhood = \
-            list(set(self.model.grid.get_neighborhood(self.pos, moore=True))
-                 | set((self.model.grid.get_neighborhood(self.partner.pos, moore=True))))
-
-        extended_neighbourhood = self.model.grid.get_neighborhood(self.pos, moore=True)
-        for coords in extended_neighbourhood:
-            if sff[coords[1], coords[0]] == np.inf:
-                continue
-            p_coords = self.next_partner_coords(cell=coords, np_coords=False)
-            if sff[p_coords[1], p_coords[0]] == np.inf:
-                continue
-            if self.partner.cross_obstacle(p_coords) and self.cross_obstacle(coords):
-                continue
-            if self.partner.cross_obstacle(p_coords):
-                p_coords = self.pos
-                coords = self.left()
-            elif self.cross_obstacle(coords):
-                coords = self.partner.pos
-                p_coords = self.partner.right()
-            if sff[coords[1], coords[0]] == np.inf:
-                continue
-            if sff[p_coords[1], p_coords[0]] == np.inf:
-                continue
-
-            leader_sf = sff[coords[1], coords[0]]
-            partner_sf = sff[p_coords[1], p_coords[0]]
-            values.append((leader_sf + partner_sf) / 2)
-            c.append((coords, p_coords))
-        if len(values) == 0:
-            return None
-        choice = np.argmin(values)
-        coords, p_coords = c[choice]
-        leader_cell = self.model.grid[coords[0]][coords[1]][0]
+        maneuvers = self.offset_maneuvers()
+        sorted_maneuvers = self.evaluate_maneuvers(maneuvers, sff)
+        sff, coords, p_coords, orientation = sorted_maneuvers[0]
+        leader_cell = self.model.grid.grid[coords[0]][coords[1]][0]
         self.next_cell = leader_cell
         leader_cell.enter(self)
-        partner_cell = self.model.grid[p_coords[0]][p_coords[1]][0]
+        partner_cell = self.model.grid.grid[p_coords[0]][p_coords[1]][0]
         self.partner.next_cell = partner_cell
         partner_cell.enter(self.partner)
         return leader_cell, partner_cell
@@ -146,21 +120,21 @@ class DirectedPartnerAgent(DirectedAgent):
         partner.name = partner.name + " " + str(self.unique_id)
         self.color = create_color(self)
         partner.color = self.color
-        position = ORIENTATION.NORTH
+        orientation = ORIENTATION.NORTH
         sx, sy = self.pos
         px, py = partner.pos
         if sx == px and sy < py:
-            position = ORIENTATION.NORTH
+            orientation = ORIENTATION.NORTH
         if sx > px and sy == py:
-            position = ORIENTATION.WEST
+            orientation = ORIENTATION.WEST
         if sx == px and sy > py:
-            position = ORIENTATION.SOUTH
+            orientation = ORIENTATION.SOUTH
         if sx < px and sy == py:
-            position = ORIENTATION.EAST
+            orientation = ORIENTATION.EAST
         # NORTH
         # LEADER PARTNER
         # partner is on the right side of leader
-        self.orientation = ORIENTATION((len(ORIENTATION) + position - 1) % len(ORIENTATION))
+        self.orientation = ORIENTATION((len(ORIENTATION) + orientation - 1) % len(ORIENTATION))
         partner.orientation = self.orientation
 
     def partner_coords(self, leader=None, np_coords=True):
@@ -175,22 +149,6 @@ class DirectedPartnerAgent(DirectedAgent):
             coords = leader[0], leader[1] - 1
         if self.orientation == ORIENTATION.WEST:
             coords = leader[0], leader[1] + 1
-        if np_coords:
-            return coords[1], coords[0]
-        return coords
-
-    def next_partner_coords(self, cell=None, np_coords=True):
-        coords = None
-        # orientation of leader in pair for next move
-        orientation = self.calculate_orientation(cell)
-        if orientation == ORIENTATION.NORTH:
-            coords = cell[0] + 1, cell[1]
-        if orientation == ORIENTATION.SOUTH:
-            coords = cell[0] - 1, cell[1]
-        if orientation == ORIENTATION.EAST:
-            coords = cell[0], cell[1] - 1
-        if orientation == ORIENTATION.WEST:
-            coords = cell[0], cell[1] + 1
         if np_coords:
             return coords[1], coords[0]
         return coords
