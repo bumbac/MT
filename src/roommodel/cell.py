@@ -17,7 +17,7 @@ class Cell(Agent):
 
     def step(self) -> None:
         if len(self.q) > 0:
-            self.winner = self.q[0]
+            self.winner = np.random.permutation(self.q)[0]
             self.q = []
             if self.agent:
                 self.winner.head = self.agent
@@ -25,6 +25,7 @@ class Cell(Agent):
 
     def advance(self) -> None:
         if self.winner:
+            print(self.winner.unique_id, "advance")
             if self.winner.head:
                 if self.winner.head == self.winner.partner:
                     self.winner.head = None
@@ -39,7 +40,10 @@ class Cell(Agent):
                 return
             else:
                 # can be successful or unsuccessful
-                self.winner.move(self)
+                prev_cell = self.winner.move(self)
+                if prev_cell is not None:
+                    prev_cell.advance()
+                return
 
     def update_color(self, value):
         color = [0, 255, 0]

@@ -30,7 +30,7 @@ class RoomModel(mesa.Model):
         self.follower_positions = self.file_loader.place_agents(self, FOLLOWER)
         self.directed_positions = self.file_loader.place_agents(self, DIRECTED)
         self.directed_pairs_positions = self.file_loader.place_agents(self, PAIR_DIRECTED)
-
+        self.graph = self.reset_graph()
         for a in self.schedule.agent_buffer():
             cell = a.cell
             cell.agent = a
@@ -46,6 +46,9 @@ class RoomModel(mesa.Model):
 
     def current_goal(self) -> Goal:
         return self.goals[0]
+
+    def reset_graph(self):
+        return [set(), {}]
 
     def checkpoint(self):
         cp = self.goals.pop(0)

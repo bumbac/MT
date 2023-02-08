@@ -44,8 +44,7 @@ class ORIENTATION(IntEnum):
         return self.shift(3), 3
 
     def shift(self, shift):
-        values = [self.NORTH, self.EAST, self.SOUTH, self.WEST]
-        return values[(self + shift) % len(values)]
+        return ORIENTATION((self + shift) % len(ORIENTATION))
 
 
 AREA_STATIC_BOOSTER = 1.1
@@ -212,33 +211,24 @@ def combine(orientation):
     leader_partner = [(l, p) for l in leader_positions for p in partner_positions]
 
     # leader and partner in the same position
-    print("ALL:", len(leader_partner))
     leader_partner = list(filter(lambda lp: lp[LEADER][POSITION] != lp[PARTNER][POSITION], leader_partner))
-    print("Different position:", len(leader_partner))
 
     # leader and partner are separated
     leader_partner = list(filter(connected, leader_partner))
-    print("Connected:", len(leader_partner))
 
     # leader and partner are aligned side by side
     leader_partner = list(filter(valid_position, leader_partner))
-    print("Side by side:", len(leader_partner))
 
     # leader and partner have same direction
-    print(len(leader_partner))
     different_dir = list(
         filter(lambda lp: lp[LEADER][ORIENTATION_VALUE] != lp[PARTNER][ORIENTATION_VALUE], leader_partner))
-    print("DIR", different_dir)
 
     # leader and partner don't have same direction
-    print(len(leader_partner))
     leader_partner = list(
         filter(lambda lp: lp[LEADER][ORIENTATION_VALUE] == lp[PARTNER][ORIENTATION_VALUE], leader_partner))
 
     # leader and partner are aligned side by side
-    print(len(leader_partner))
     leader_partner = list(filter(valid_position, leader_partner))
-    print(len(leader_partner))
     for combination in leader_partner:
         together, lc, pc = movement_cost(combination, orientation)
         if together >= 4:

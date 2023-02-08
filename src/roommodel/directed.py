@@ -57,7 +57,7 @@ class DirectedAgent(Agent):
 
     def move(self, cell) -> None:
         self.orientation = self.compute_orientation(cell)
-        super().move(cell)
+        return super().move(cell)
 
     def update_color(self, value):
         self.color = create_color(self)

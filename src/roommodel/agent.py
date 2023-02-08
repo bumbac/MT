@@ -16,26 +16,6 @@ class Agent(mesa.Agent):
         self.cell = None
         self.next_cell = None
 
-    def cross_obstacle(self, pos):
-        # non diagonal movement
-        if not self.is_diagonal(pos):
-            return False
-        corners = []
-        if self.pos[0] < pos[0]:
-            corners.append((self.pos[0] + 1, self.pos[1]))
-        else:
-            corners.append((self.pos[0] - 1, self.pos[1]))
-
-        if self.pos[1] < pos[1]:
-            corners.append((self.pos[0], self.pos[1] + 1))
-        else:
-            corners.append((self.pos[0], self.pos[1] - 1))
-
-        for x, y in corners:
-            if self.model.sff["Follower"][y][x] == SFF_OBSTACLE:
-                return True
-        return False
-
     def select_cell(self, sff):
         self.head = None
         self.tail = None
@@ -71,9 +51,29 @@ class Agent(mesa.Agent):
         self.cell.winner = None
         if self.tail:
             self.tail.head = None
-            prev_cell.advance()
             self.tail = None
         self.cell.evacuate()
+        return prev_cell
+
+    def cross_obstacle(self, pos):
+        # non diagonal movement
+        if not self.is_diagonal(pos):
+            return False
+        corners = []
+        if self.pos[0] < pos[0]:
+            corners.append((self.pos[0] + 1, self.pos[1]))
+        else:
+            corners.append((self.pos[0] - 1, self.pos[1]))
+
+        if self.pos[1] < pos[1]:
+            corners.append((self.pos[0], self.pos[1] + 1))
+        else:
+            corners.append((self.pos[0], self.pos[1] - 1))
+
+        for x, y in corners:
+            if self.model.sff["Follower"][y][x] == SFF_OBSTACLE:
+                return True
+        return False
 
     def is_diagonal(self, pos, agent_pos=None):
         if agent_pos is None:
