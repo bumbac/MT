@@ -25,6 +25,7 @@ class RoomModel(mesa.Model):
         self.n_evacuated_followers = 0
         self.n_evacuated_leaders = 0
         self.sff = {}
+        self.of = self.file_loader.get_room()
         self.cell_gate = self.file_loader.place_cells(self)
         self.leader_positions = self.file_loader.place_agents(self, LEADER)
         self.follower_positions = self.file_loader.place_agents(self, FOLLOWER)

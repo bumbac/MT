@@ -29,9 +29,6 @@ class SequentialActivation(mesa.time.BaseScheduler):
         for agent in self._agents.values():
             agent.advance()
 
-        scc = scc_graph(self.model.graph)
-        # self.untangle(scc)
-
         for cell in self._cells.values():
             cell.advance()
 
@@ -47,12 +44,3 @@ class SequentialActivation(mesa.time.BaseScheduler):
 
     def remove_agent(self, agent: mesa.Agent):
         self.removed_agents[agent.unique_id] = agent
-
-
-    def untangle(self, scc):
-        for component in scc:
-            agents = [self._agents[uid] for uid in component]
-            leader = agents[0]
-            if leader.head:
-                leader.head.tail = None
-            leader.head = None
