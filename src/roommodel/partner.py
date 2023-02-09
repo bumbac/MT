@@ -2,7 +2,7 @@ import mesa
 import numpy as np
 
 from .directed import DirectedAgent
-from .utils.constants import ORIENTATION, SFF_OBSTACLE, MANEUVERS
+from .utils.constants import ORIENTATION, MANEUVERS
 from .utils.portrayal import create_color
 
 
@@ -11,7 +11,6 @@ class DirectedPartnerAgent(DirectedAgent):
         super().__init__(uid, model)
         self.name = "Follower Pair: " + self.name
         self.leader = True
-        self.confirm_move = False
         self.moved = False
 
     def step(self) -> None:
@@ -19,6 +18,7 @@ class DirectedPartnerAgent(DirectedAgent):
         self.head = None
         self.tail = None
         self.confirm_move = False
+        self.finished_move = False
         self.moved = False
         self.leader = self.update_leader()
         if not self.leader:
@@ -28,25 +28,10 @@ class DirectedPartnerAgent(DirectedAgent):
         sff = self.model.sff["Follower"]
         return self.select_cell(sff)
 
-    def advance(self) -> None:
-        if self.next_cell.winner == self:
-            self.confirm_move = True
-        else:
-            self.next_cell = None
-
-    def decycle(self):
-        agent = self.next_cell.agent
-        origin = self.next_cell.agent
-        while agent:
-            next_cell = agent.next_cell
-            if next_cell:
-                agent = next_cell.agent
-            else:
-                return
-            if agent == origin:
-                agent.move(agent.next_cell)
-
     def move(self, cell) -> None:
+        if self.finished_move:
+            print("fishy")
+            return
         # executes only when cell is empty
         if not self.partner:
             return super().move(cell)
@@ -56,24 +41,15 @@ class DirectedPartnerAgent(DirectedAgent):
             self.next_cell = None
             return None
 
-        if self.leader:
-            self.moved = True
-            if not self.partner.moved:
-                print("cycle")
-                # self.decycle()
-                self.partner.next_cell.advance()
-            if self.partner.moved:
-                return super().move(cell)
-            else:
-                self.next_cell = None
-                self.confirm_move = False
-                self.moved = False
-                return None
+        self.moved = True
+        if not self.partner.moved:
+            self.partner.next_cell.advance()
+        if self.partner.moved:
+            return super().move(cell)
         else:
-            # partner
-            if self.partner.moved:
-                self.moved = True
-                return super().move(cell)
+            self.next_cell = None
+            self.confirm_move = False
+            self.moved = False
             return None
 
     def select_cell(self, sff):

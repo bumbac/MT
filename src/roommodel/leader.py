@@ -2,6 +2,7 @@ import numpy as np
 import mesa
 
 from .utils.portrayal import create_color
+from .utils.constants import KO
 from .follower import FollowerAgent
 from .directed import DirectedAgent
 
@@ -11,6 +12,8 @@ class LeaderAgent(FollowerAgent):
         super().__init__(uid, model)
         self.name = "Leader: " + str(self.unique_id)
         self.color = create_color(self)
+        # leader tries to go around
+        self.k[KO] = 0.9
 
     def advance(self) -> None:
         if self.next_cell.winner == self:
@@ -23,6 +26,11 @@ class LeaderAgent(FollowerAgent):
 
     def step(self) -> None:
         sff = self.model.sff["Leader"]
+        self.head = None
+        self.tail = None
+        self.confirm_move = False
+        self.finished_move = False
+        self.moved = False
         self.select_cell(sff)
 
     def move(self, cell):
@@ -56,6 +64,11 @@ class LeaderDirectedAgent(DirectedAgent):
 
     def step(self) -> None:
         sff = self.model.sff["Leader"]
+        self.head = None
+        self.tail = None
+        self.confirm_move = False
+        self.finished_move = False
+        self.moved = False
         self.select_cell(sff)
 
     def move(self, cell):

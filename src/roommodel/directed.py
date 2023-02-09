@@ -11,10 +11,13 @@ class DirectedAgent(Agent):
         super().__init__(uid, model)
         self.name = "Directed " + self.name
         self.orientation = ORIENTATION.NORTH
+        self.next_orientation = ORIENTATION.NORTH
 
     def step(self) -> None:
         sff = self.model.sff["Follower"]
         self.select_cell(sff)
+        if self.next_cell:
+            self.next_orientation = self.compute_orientation(self.next_cell)
 
     def calculate_orientation(self, cell):
         rotation = False
@@ -51,12 +54,10 @@ class DirectedAgent(Agent):
         next_orientation, shift = self.orientation.twist(self.pos, cell.pos)
         return next_orientation
 
-    def compute_orientation2(self, pos):
-        next_orientation, shift = self.orientation.twist(self.pos, pos)
-        return next_orientation
-
     def move(self, cell) -> None:
-        self.orientation = self.compute_orientation(cell)
+        self.orientation = self.next_orientation
+        print("success", self.pos, cell.pos, self.unique_id)
+
         return super().move(cell)
 
     def update_color(self, value):

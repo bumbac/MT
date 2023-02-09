@@ -25,20 +25,23 @@ class Cell(Agent):
                     self.agent.tail = self.winner
 
     def decycle(self):
-        if self.winner.head == self.winner.partner:
-            self.winner.head = None
-            self.winner.partner.tail = None
-            self.winner.partner.next_cell.advance()
+        # if self.winner.head == self.winner.partner:
+        #     self.winner.head = None
+        #     self.winner.partner.tail = None
+        #     self.winner.partner.next_cell.advance()
         head = self.winner
         origin = self.winner
         if head:
             while head.head is not None:
-                print(head, head.head)
                 head = head.head
                 if head == origin:
                     head.head.tail = None
                     head.head = None
-            if head.next_cell:
+                if head == self.winner.partner:
+                    self.winner.head = None
+                    self.winner.partner.tail = None
+                    self.winner.partner.next_cell.advance()
+            if head.confirm_move:
                 head.next_cell.advance()
         return
 
@@ -48,10 +51,11 @@ class Cell(Agent):
             if self.winner.head:
                 self.decycle()
             else:
-                # can be successful or unsuccessful
-                prev_cell = self.winner.move(self)
-                if prev_cell is not None:
-                    prev_cell.advance()
+                if not self.winner.finished_move:
+                    # can be successful or unsuccessful
+                    prev_cell = self.winner.move(self)
+                    if prev_cell is not None:
+                        prev_cell.advance()
                 return
 
     def update_color(self, value):
