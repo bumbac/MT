@@ -15,6 +15,7 @@ class DirectedPartnerAgent(DirectedAgent):
         self.moved = False
 
     def step(self) -> None:
+        print(self, self.partner)
         self.head = None
         self.tail = None
         self.confirm_move = False
@@ -25,43 +26,48 @@ class DirectedPartnerAgent(DirectedAgent):
         if not self.partner:
             super().step()
         sff = self.model.sff["Follower"]
-        self.select_cell(sff)
+        return self.select_cell(sff)
 
     def advance(self) -> None:
         if self.next_cell.winner == self:
             self.confirm_move = True
-            if self.next_cell.agent:
-                self.model.graph[0].add(self.unique_id)
-                if self.unique_id in self.model.graph[1]:
-                    self.model.graph[1][self.unique_id].append(self.next_cell.agent.unique_id)
-                else:
-                    self.model.graph[1][self.unique_id] = [self.next_cell.agent.unique_id]
-                self.model.graph[0].add(self.next_cell.agent.unique_id)
-                if self.next_cell.agent.unique_id not in self.model.graph[1]:
-                    self.model.graph[1][self.next_cell.agent.unique_id] = []
         else:
             self.next_cell = None
+
+    def decycle(self):
+        agent = self.next_cell.agent
+        origin = self.next_cell.agent
+        while agent:
+            next_cell = agent.next_cell
+            if next_cell:
+                agent = next_cell.agent
+            else:
+                return
+            if agent == origin:
+                agent.move(agent.next_cell)
 
     def move(self, cell) -> None:
         # executes only when cell is empty
         if not self.partner:
             return super().move(cell)
 
+        if not self.partner.confirm_move:
+            self.confirm_move = False
+            self.next_cell = None
+            return None
+
         if self.leader:
-            if self.partner.confirm_move:
-                self.moved = True
-                if not self.partner.moved:
-                    self.partner.next_cell.advance()
-                if self.partner.moved:
-                    return super().move(cell)
-                else:
-                    self.next_cell = None
-                    self.confirm_move = False
-                    self.moved = False
-                    return None
+            self.moved = True
+            if not self.partner.moved:
+                print("cycle")
+                # self.decycle()
+                self.partner.next_cell.advance()
+            if self.partner.moved:
+                return super().move(cell)
             else:
-                self.confirm_move = False
                 self.next_cell = None
+                self.confirm_move = False
+                self.moved = False
                 return None
         else:
             # partner
@@ -77,15 +83,37 @@ class DirectedPartnerAgent(DirectedAgent):
         self.head = None
         self.tail = None
         maneuvers = self.offset_maneuvers()
-        sorted_maneuvers = self.evaluate_maneuvers(maneuvers, sff)
-        sff, coords, p_coords, orientation = sorted_maneuvers[0]
+        cells = [[], []]
+        for leader, partner in maneuvers:
+            cells[0].append(leader[0])
+            cells[1].append(partner[0])
+        leader_attraction = self.attraction(sff, cells[0])
+        partner_attraction = self.partner.attraction(sff, cells[1])
+        attraction = {}
+        for leader, partner in maneuvers:
+            coords, _ = leader
+            p_coords, _ = partner
+            if leader_attraction[coords] == 0 or partner_attraction[p_coords] == 0:
+                attraction[(leader, partner)] = 0
+            else:
+                attraction[(leader, partner)] = leader_attraction[coords] + partner_attraction[p_coords]
+
+        normalize = sum(attraction.values())
+        for key in attraction:
+            attraction[key] /= normalize
+        leader, partner = self.stochastic_choice(attraction)
+        coords, orientation = leader
+        p_coords, p_orientation = partner
         leader_cell = self.model.grid.grid[coords[0]][coords[1]][0]
         self.next_cell = leader_cell
+        self.next_orientation = orientation
         leader_cell.enter(self)
         partner_cell = self.model.grid.grid[p_coords[0]][p_coords[1]][0]
         self.partner.next_cell = partner_cell
+        self.partner.next_orientation = p_orientation
         partner_cell.enter(self.partner)
-        print(self.pos, leader_cell.pos, partner_cell.pos)
+        print(self.pos, leader_cell.pos, self.next_orientation)
+        print(self.partner.pos, partner_cell.pos, self.partner.next_orientation)
         return leader_cell, partner_cell
 
     def dist(self, start, goal):
@@ -100,25 +128,10 @@ class DirectedPartnerAgent(DirectedAgent):
 
             leader_move = leader_pos[0] + leader_offset[0], leader_pos[1] + leader_offset[1]
             partner_move = leader_pos[0] + partner_offset[0], leader_pos[1] + partner_offset[1]
-            # if self.cross_obstacle(leader_move):
-            #     continue
-            # if self.partner.cross_obstacle(partner_move):
-            #     continue
             offset_move = (leader_move, leader_orientation), (partner_move, partner_orientation)
 
             maneuvers.append(offset_move)
         return maneuvers
-
-    def evaluate_maneuvers(self, maneuvers, sff):
-        choices = []
-        for move in maneuvers:
-            leader_position, orientation = move[0]
-            partner_position, orientation = move[1]
-            leader_sf = sff[leader_position[1], leader_position[0]]
-            partner_sf = sff[partner_position[1], partner_position[0]]
-            next_move = (leader_sf + partner_sf, leader_position, partner_position, orientation)
-            choices.append(next_move)
-        return sorted(choices, key=lambda x: x[0])
 
     def update_leader(self):
         if not self.partner:

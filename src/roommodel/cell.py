@@ -20,24 +20,33 @@ class Cell(Agent):
             self.winner = np.random.permutation(self.q)[0]
             self.q = []
             if self.agent:
-                self.winner.head = self.agent
-                self.agent.tail = self.winner
+                if self.winner != self.agent:
+                    self.winner.head = self.agent
+                    self.agent.tail = self.winner
+
+    def decycle(self):
+        if self.winner.head == self.winner.partner:
+            self.winner.head = None
+            self.winner.partner.tail = None
+            self.winner.partner.next_cell.advance()
+        head = self.winner
+        origin = self.winner
+        if head:
+            while head.head is not None:
+                print(head, head.head)
+                head = head.head
+                if head == origin:
+                    head.head.tail = None
+                    head.head = None
+            if head.next_cell:
+                head.next_cell.advance()
+        return
 
     def advance(self) -> None:
         if self.winner:
             print(self.winner.unique_id, "advance")
             if self.winner.head:
-                if self.winner.head == self.winner.partner:
-                    self.winner.head = None
-                    self.winner.partner.tail = None
-                    self.winner.partner.next_cell.advance()
-                head = self.winner
-                if head:
-                    while head.head is not None:
-                        head = head.head
-                    if head.next_cell:
-                        head.next_cell.advance()
-                return
+                self.decycle()
             else:
                 # can be successful or unsuccessful
                 prev_cell = self.winner.move(self)

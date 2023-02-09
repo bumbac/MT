@@ -70,9 +70,17 @@ MAP_SYMBOLS[EMPTY] = 0
 
 MAP_VALUES = {v: k for k, v in MAP_SYMBOLS.items()}
 
+EMPTY = 0
+OCCUPIED = 1
+
 SFF_MAX_FREE = 1
 SFF_MIN_FREE = 0
 SFF_OBSTACLE = float("inf")
+
+KS = 0
+KO = 1
+KD = 2
+GAMMA = 3
 
 
 def possible_moves():
