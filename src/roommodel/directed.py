@@ -12,12 +12,15 @@ class DirectedAgent(Agent):
         self.orientation = ORIENTATION.NORTH
         self.next_orientation = ORIENTATION.NORTH
 
+    def __repr__(self):
+        return self.name + " " + str(self.pos) + " " + str(self.orientation)
+
     def step(self) -> None:
         self.reset()
         sff = self.model.sff["Follower"]
         self.select_cell(sff)
         if self.next_cell:
-            self.next_orientation = self.compute_orientation(self.next_cell)
+            self.next_orientation, shift = self.orientation.twist(self.pos, self.next_cell)
 
     def move(self):
         # if self.finished_move:
@@ -26,9 +29,6 @@ class DirectedAgent(Agent):
         self.orientation = self.next_orientation
         print("success", self.pos, cell.pos, self.unique_id)
         return super().move()
-
-    def __repr__(self):
-        return self.name + " " + str(self.pos) + " " + str(self.orientation)
 
     def calculate_orientation(self, cell):
         rotation = False
@@ -60,7 +60,3 @@ class DirectedAgent(Agent):
         if diagonal:
             return self.orientation
         return orientation
-
-    def compute_orientation(self, cell):
-        next_orientation, shift = self.orientation.twist(self.pos, cell.pos)
-        return next_orientation

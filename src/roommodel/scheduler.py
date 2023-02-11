@@ -30,7 +30,7 @@ class SequentialActivation(mesa.time.BaseScheduler):
         # confirm move
         for agent in self._agents.values():
             agent.advance()
-
+        # move agents
         for cell in self._cells.values():
             cell.advance()
 
