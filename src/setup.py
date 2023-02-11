@@ -8,8 +8,7 @@ from roommodel.utils.portrayal import agent_portrayal
 from roommodel.file_loader import FileLoader
 
 if __name__ == '__main__':
-    # filename = "./maps/switching_example.txt"
-    filename = "./maps/long_right.txt"
+    filename = "./maps/30.txt"
     filename = os.path.abspath(filename)
     fl = FileLoader(filename)
     width, height = fl.dimensions()
