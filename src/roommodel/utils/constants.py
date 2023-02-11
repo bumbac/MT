@@ -239,8 +239,8 @@ def combine(orientation):
     leader_partner = list(filter(valid_position, leader_partner))
     for combination in leader_partner:
         together, lc, pc = movement_cost(combination, orientation)
-        if together >= 4:
-            print(combination, together, lc, pc)
+        # if lc == 3 or pc == 3:
+        #     print(combination, together, lc, pc)
     return leader_partner
 
 

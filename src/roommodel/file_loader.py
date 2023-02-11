@@ -2,7 +2,6 @@ import numpy as np
 import os
 
 from .cell import Cell
-from .agent import Agent
 from .follower import FollowerAgent
 from .leader import LeaderAgent
 from .directed import DirectedAgent

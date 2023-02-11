@@ -13,7 +13,7 @@ class DirectedPartnerAgent(DirectedAgent):
         self.leader = True
         self.k[KO] = 0.1
 
-    def step(self) -> None:
+    def step(self):
         self.leader = self.update_leader()
         if not self.leader:
             return
@@ -25,40 +25,9 @@ class DirectedPartnerAgent(DirectedAgent):
         sff = self.model.sff["Follower"]
         return self.select_cell(sff)
 
-    def move(self):
-        if self.partner is None:
-            # move as single agent
-            return super().move()
-
-        if not self.partner.confirm_move:
-            # partner agent did not win
-            self.confirm_move = False
-            if self.next_cell:
-                self.next_cell.winner = None
-            self.next_cell = None
-            return None
-
-        self.moved = True
-        if not self.partner.moved:
-            # attempt to move partner
-            self.partner.next_cell.advance()
-        if self.partner.moved:
-            # if attempt was successful
-            # or partner attempts to move me
-            # definitive move
-            return super().move()
-        else:
-            # one of the two can't move
-            self.confirm_move = False
-            self.moved = False
-            if self.next_cell:
-                self.next_cell.winner = None
-            self.next_cell = None
-            return None
-
     def select_cell(self, sff):
         if not self.partner:
-            raise ValueError("Calculating partner position with no partner.")
+            return super().select_cell(sff)
         maneuvers = self.offset_maneuvers()
         cells = [[], []]
         for leader, partner in maneuvers:
@@ -89,8 +58,6 @@ class DirectedPartnerAgent(DirectedAgent):
         self.partner.next_cell = partner_cell
         self.partner.next_orientation = p_orientation
         partner_cell.enter(self.partner)
-        print(self.pos, leader_cell.pos, self.next_orientation, self.model.schedule.epochs)
-        print(self.partner.pos, partner_cell.pos, self.partner.next_orientation)
         return leader_cell, partner_cell
 
     def dist(self, start, goal):
@@ -143,8 +110,8 @@ class DirectedPartnerAgent(DirectedAgent):
         partner.partner = self
         self.leader = self.update_leader()
         self.partner.leader = self.partner.update_leader()
-        self.name = self.name + " " + str(partner.unique_id)
-        partner.name = partner.name + " " + str(self.unique_id)
+        self.name = "Follower Pair: " + str(self.unique_id) + " " + str(partner.unique_id)
+        partner.name = "Follower Pair: " + str(partner.unique_id) + " " + str(self.unique_id)
         self.color = create_color(self)
         partner.color = self.color
         orientation = ORIENTATION.NORTH
@@ -163,6 +130,14 @@ class DirectedPartnerAgent(DirectedAgent):
         # partner is on the right side of leader
         self.orientation = ORIENTATION((len(ORIENTATION) + orientation - 1) % len(ORIENTATION))
         partner.orientation = self.orientation
+
+    def remove_partner(self):
+        if not self.partner:
+            raise ValueError("No partner to remove.")
+        self.partner = None
+        self.leader = True
+        self.name = "Follower Pair: " + str(self.unique_id)
+        self.color = create_color(self)
 
     def partner_coords(self, leader=None):
         coords = None

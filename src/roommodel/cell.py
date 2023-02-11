@@ -27,7 +27,6 @@ class Cell(Agent):
     def decycle(self):
         head = self.winner
         origin = self.winner
-        print("decycle", self.winner.unique_id)
         while head.head is not None:
             head = head.head
             # found cycle, back at beginning
@@ -35,25 +34,14 @@ class Cell(Agent):
                 # split the cycle
                 origin.head.tail = None
                 origin.head = None
-            if head is self.winner.partner and head is not None:
-                self.winner.head = None
-                self.winner.partner.tail = None
-        if head.confirm_move and head.next_cell is not None:
-            head.next_cell.advance()
-        return
+        return head
 
-    def advance(self) -> None:
+    def advance(self):
         if self.winner is not None:
-            print(self.winner.unique_id, "advance", self.winner.pos, self.winner.next_cell.pos)
-            if self.winner.head is not None:
-                self.decycle()
-            else:
-                if not self.winner.finished_move:
-                    # can be successful or unsuccessful
-                    prev_cell = self.winner.move()
-                    if prev_cell is not None:
-                        prev_cell.advance()
-                return
+            head = self.decycle()
+            if head.next_cell:
+                if head.next_cell.winner is head:
+                    head.move()
 
     def update_color(self, value):
         color = [0, 255, 0]
@@ -82,8 +70,7 @@ class Cell(Agent):
             self.model.n_evacuated_leaders += 1
 
         if self.agent.partner:
-            self.agent.partner.partner = None
-            self.agent.partner.leader = True
+            self.agent.partner.remove_partner()
         self.model.grid.remove_agent(self.agent)
         self.model.schedule.remove_agent(self.agent)
         self.agent = None

@@ -10,9 +10,10 @@ from .directed import DirectedAgent
 class LeaderAgent(Agent):
     def __init__(self, uid, model):
         super().__init__(uid, model)
+        self.color = create_color(self)
         self.name = "Leader: " + str(self.unique_id)
         # leader tries to go around
-        self.k[KO] = 1.0
+        self.k[KO] = 0.1
 
     def step(self):
         self.reset()

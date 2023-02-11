@@ -8,7 +8,7 @@ from .utils.constants import ORIENTATION
 class DirectedAgent(Agent):
     def __init__(self, uid, model):
         super().__init__(uid, model)
-        self.name = "Directed " + self.name
+        self.name = "Follower " + self.name
         self.orientation = ORIENTATION.NORTH
         self.next_orientation = ORIENTATION.NORTH
 
@@ -20,10 +20,9 @@ class DirectedAgent(Agent):
         sff = self.model.sff["Follower"]
         self.select_cell(sff)
         if self.next_cell:
-            self.next_orientation, shift = self.orientation.twist(self.pos, self.next_cell)
+            self.next_orientation, shift = self.orientation.twist(self.pos, self.next_cell.pos)
 
     def move(self):
-        cell = self.next_cell
         self.orientation = self.next_orientation
         return super().move()
 

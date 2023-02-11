@@ -18,7 +18,7 @@ class Agent(mesa.Agent):
         self.moved = False
         self.finished_move = False
         self.partner = None
-        self.k = {KS: 10,
+        self.k = {KS: 30,
                   KO: 0.5,
                   KD: 0.5,
                   GAMMA: 0.1}
@@ -44,13 +44,14 @@ class Agent(mesa.Agent):
         cell = self.model.grid[coords[0]][coords[1]][0]
         self.next_cell = cell
         cell.enter(self)
-        print(self.pos, cell.pos)
         return cell
 
-    def advance(self) -> None:
+    def advance(self):
         if self.next_cell is not None:
             if self.next_cell.winner == self:
                 self.confirm_move = True
+            else:
+                self.bubbledown()
         else:
             self.bubbledown()
 
@@ -79,10 +80,12 @@ class Agent(mesa.Agent):
         self.model.of[self.cell.pos[1], self.cell.pos[0]] = EMPTY
         # current cell
         self.cell = cell
+        self.next_cell = None
         self.cell.agent = self
         self.cell.winner = None
         if self.tail is not None:
             self.tail.head = None
+            self.tail.move()
             self.tail = None
         self.cell.evacuate()
         self.finished_move = True

@@ -19,8 +19,11 @@ def create_color(agent, hex=True):
     if agent.name.startswith("Follower"):
         color = [0, 0, 255]
     if agent.name.startswith("Follower Pair"):
-        g = (str.encode(agent.name)[0] + str.encode(agent.name)[1]) // 2
-        color = [0, g, 128]
+        hash_value = hash(agent.name)
+        r = hash_value % 256
+        g = hash_value % 64
+        b = hash_value % 128
+        color = [r, g, b]
     if hex:
         return rgb_to_hex(*color)
 
@@ -48,7 +51,7 @@ def agent_portrayal(agent):
         }
         return portrayal
 
-    if agent.name.startswith("Follower Pair") or agent.name.startswith("Directed"):
+    if agent.name.startswith("Follower"):
         portrayal = {
             "Shape": "arrowHead",
             "scale": 1,
@@ -57,18 +60,6 @@ def agent_portrayal(agent):
             "Color": agent.color,
             "Filled": "true",
             "Layer": 2,
-            "text": agent.unique_id,
-            "text_color": "white"
-        }
-        return portrayal
-
-    if agent.name.startswith("Follower"):
-        portrayal = {
-            "Shape": "circle",
-            "Color": agent.color,
-            "Filled": "true",
-            "Layer": 2,
-            "r": 0.8,
             "text": agent.unique_id,
             "text_color": "white"
         }
