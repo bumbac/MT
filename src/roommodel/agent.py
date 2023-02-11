@@ -23,6 +23,12 @@ class Agent(mesa.Agent):
                   KD: 0.5,
                   GAMMA: 0.1}
 
+    def __repr__(self):
+        return self.name + " " + str(self.pos)
+
+    def update_color(self, value):
+        self.color = create_color(self)
+
     def reset(self):
         self.head = None
         self.tail = None
@@ -41,8 +47,27 @@ class Agent(mesa.Agent):
         print(self.pos, cell.pos)
         return cell
 
-    def update_color(self, value):
-        self.color = create_color(self)
+    def advance(self) -> None:
+        if self.next_cell is not None:
+            if self.next_cell.winner == self:
+                self.confirm_move = True
+        else:
+            self.bubbledown()
+
+    def bubbledown(self):
+        if self.next_cell is not None:
+            if self.next_cell.winner == self:
+                self.next_cell.winner = None
+            self.next_cell = None
+        self.confirm_move = None
+        if self.partner is not None:
+            if self.partner.next_cell is not None:
+                self.partner.bubbledown()
+        if self.head:
+            self.head.tail = None
+            self.head = None
+        if self.tail is not None:
+            self.tail.bubbledown()
 
     def move(self):
         # if self.finished_move:
@@ -142,13 +167,3 @@ class Agent(mesa.Agent):
         if agent_pos is None:
             agent_pos = self.pos
         return (agent_pos[0] != pos[0]) and (agent_pos[1] != pos[1])
-
-    def advance(self) -> None:
-        if self.next_cell.winner == self:
-            self.confirm_move = True
-        else:
-            self.confirm_move = False
-            self.next_cell = None
-
-    def __repr__(self):
-        return self.name + " " + str(self.pos)
