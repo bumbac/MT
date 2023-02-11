@@ -9,6 +9,7 @@ class SequentialActivation(mesa.time.BaseScheduler):
         super().__init__(model)
         self._cells: dict[int, Cell] = {}
         self.removed_agents: dict[int, mesa.Agent] = {}
+        self.epochs = 0
 
     def add(self, agent: mesa.Agent) -> None:
         if agent.unique_id in self._agents:
@@ -17,6 +18,7 @@ class SequentialActivation(mesa.time.BaseScheduler):
 
     def step(self) -> None:
         """Step all agents, then advance them."""
+        self.epochs += 1
         self._cells = {}
         self.removed_agents = {}
         # select next_cell

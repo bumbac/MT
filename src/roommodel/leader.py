@@ -3,39 +3,28 @@ import mesa
 
 from .utils.portrayal import create_color
 from .utils.constants import KO
-from .follower import FollowerAgent
+from .agent import Agent
 from .directed import DirectedAgent
 
 
-class LeaderAgent(FollowerAgent):
+class LeaderAgent(Agent):
     def __init__(self, uid, model):
         super().__init__(uid, model)
         self.name = "Leader: " + str(self.unique_id)
-        self.color = create_color(self)
         # leader tries to go around
-        self.k[KO] = 0.9
-
-    def advance(self) -> None:
-        if self.next_cell.winner == self:
-            if self.next_cell.agent:
-                self.model.graph[0].add(self.unique_id)
-                if self.unique_id in self.model.graph[1]:
-                    self.model.graph[1][self.unique_id].append(self.next_cell.agent.unique_id)
-                else:
-                    self.model.graph[1][self.unique_id] = [self.next_cell.agent.unique_id]
+        self.k[KO] = 1.0
 
     def step(self) -> None:
+        self.reset()
         sff = self.model.sff["Leader"]
-        self.head = None
-        self.tail = None
-        self.confirm_move = False
-        self.finished_move = False
-        self.moved = False
-        self.select_cell(sff)
+        return self.select_cell(sff)
 
-    def move(self, cell):
+    def move(self):
+        # if self.finished_move:
+        #     return None
+        cell = self.next_cell
         self.model.sff_update([cell.pos, cell.pos], "Follower")
-        return super().move(cell)
+        return super().move()
 
 
 class SwitchingAgent(LeaderAgent):
@@ -63,14 +52,14 @@ class LeaderDirectedAgent(DirectedAgent):
         self.color = create_color(self)
 
     def step(self) -> None:
+        self.reset()
         sff = self.model.sff["Leader"]
-        self.head = None
-        self.tail = None
-        self.confirm_move = False
-        self.finished_move = False
-        self.moved = False
         self.select_cell(sff)
 
-    def move(self, cell):
+    def move(self):
+        if self.next_cell:
+            cell = self.next_cell
+        else:
+            return None
         self.model.sff_update([cell.pos, cell.pos], "Follower")
-        super().move(cell)
+        return super().move(cell)

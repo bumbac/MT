@@ -19,41 +19,38 @@ class Cell(Agent):
         if len(self.q) > 0:
             self.winner = np.random.permutation(self.q)[0]
             self.q = []
-            if self.agent:
+            if self.agent is not None:
                 if self.winner != self.agent:
                     self.winner.head = self.agent
                     self.agent.tail = self.winner
 
     def decycle(self):
-        # if self.winner.head == self.winner.partner:
-        #     self.winner.head = None
-        #     self.winner.partner.tail = None
-        #     self.winner.partner.next_cell.advance()
         head = self.winner
         origin = self.winner
-        if head:
-            while head.head is not None:
-                head = head.head
-                if head == origin:
-                    head.head.tail = None
-                    head.head = None
-                if head == self.winner.partner:
-                    self.winner.head = None
-                    self.winner.partner.tail = None
-                    self.winner.partner.next_cell.advance()
-            if head.confirm_move:
-                head.next_cell.advance()
+        print("decycle", self.winner.unique_id)
+        while head.head is not None:
+            head = head.head
+            # found cycle, back at beginning
+            if head is origin:
+                # split the cycle
+                origin.head.tail = None
+                origin.head = None
+            if head is self.winner.partner and head is not None:
+                self.winner.head = None
+                self.winner.partner.tail = None
+        if head.confirm_move and head.next_cell is not None:
+            head.next_cell.advance()
         return
 
     def advance(self) -> None:
-        if self.winner:
-            print(self.winner.unique_id, "advance")
-            if self.winner.head:
+        if self.winner is not None:
+            print(self.winner.unique_id, "advance", self.winner.pos, self.winner.next_cell)
+            if self.winner.head is not None:
                 self.decycle()
             else:
                 if not self.winner.finished_move:
                     # can be successful or unsuccessful
-                    prev_cell = self.winner.move(self)
+                    prev_cell = self.winner.move()
                     if prev_cell is not None:
                         prev_cell.advance()
                 return

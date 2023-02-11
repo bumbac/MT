@@ -2,7 +2,6 @@ import mesa
 import numpy as np
 
 from .agent import Agent
-from .utils.portrayal import create_color
 from .utils.constants import ORIENTATION
 
 
@@ -14,10 +13,22 @@ class DirectedAgent(Agent):
         self.next_orientation = ORIENTATION.NORTH
 
     def step(self) -> None:
+        self.reset()
         sff = self.model.sff["Follower"]
         self.select_cell(sff)
         if self.next_cell:
             self.next_orientation = self.compute_orientation(self.next_cell)
+
+    def move(self):
+        # if self.finished_move:
+        #     return None
+        cell = self.next_cell
+        self.orientation = self.next_orientation
+        print("success", self.pos, cell.pos, self.unique_id)
+        return super().move()
+
+    def __repr__(self):
+        return self.name + " " + str(self.pos) + " " + str(self.orientation)
 
     def calculate_orientation(self, cell):
         rotation = False
@@ -53,15 +64,3 @@ class DirectedAgent(Agent):
     def compute_orientation(self, cell):
         next_orientation, shift = self.orientation.twist(self.pos, cell.pos)
         return next_orientation
-
-    def move(self, cell) -> None:
-        self.orientation = self.next_orientation
-        print("success", self.pos, cell.pos, self.unique_id)
-
-        return super().move(cell)
-
-    def update_color(self, value):
-        self.color = create_color(self)
-
-    def __repr__(self):
-        return self.name + " " + str(self.pos) + " " + str(self.orientation)

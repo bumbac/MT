@@ -2,7 +2,7 @@ import mesa
 import numpy as np
 
 from .directed import DirectedAgent
-from .utils.constants import ORIENTATION, MANEUVERS
+from .utils.constants import ORIENTATION, MANEUVERS, KO
 from .utils.portrayal import create_color
 
 
@@ -11,53 +11,56 @@ class DirectedPartnerAgent(DirectedAgent):
         super().__init__(uid, model)
         self.name = "Follower Pair: " + self.name
         self.leader = True
-        self.moved = False
+        self.k[KO] = 0.1
 
     def step(self) -> None:
-        print(self, self.partner)
-        self.head = None
-        self.tail = None
-        self.confirm_move = False
-        self.finished_move = False
-        self.moved = False
         self.leader = self.update_leader()
         if not self.leader:
             return
         if not self.partner:
             super().step()
+            return
+        self.reset()
+        self.partner.reset()
         sff = self.model.sff["Follower"]
         return self.select_cell(sff)
 
-    def move(self, cell) -> None:
-        if self.finished_move:
-            print("fishy")
-            return
-        # executes only when cell is empty
-        if not self.partner:
-            return super().move(cell)
+    def move(self):
+        # if self.finished_move:
+        #     return None
+        if self.partner is None:
+            # move as single agent
+            return super().move()
 
         if not self.partner.confirm_move:
+            # partner agent did not win
             self.confirm_move = False
+            if self.next_cell:
+                self.next_cell.winner = None
             self.next_cell = None
             return None
 
         self.moved = True
         if not self.partner.moved:
+            # attempt to move partner
             self.partner.next_cell.advance()
         if self.partner.moved:
-            return super().move(cell)
+            # if attempt was successful
+            # or partner attempts to move me
+            # definitive move
+            return super().move()
         else:
-            self.next_cell = None
+            # one of the two can't move
             self.confirm_move = False
             self.moved = False
+            if self.next_cell:
+                self.next_cell.winner = None
+            self.next_cell = None
             return None
 
     def select_cell(self, sff):
         if not self.partner:
-            super().select_cell(sff)
-            return
-        self.head = None
-        self.tail = None
+            raise ValueError("Calculating partner position with no partner.")
         maneuvers = self.offset_maneuvers()
         cells = [[], []]
         for leader, partner in maneuvers:
@@ -88,12 +91,19 @@ class DirectedPartnerAgent(DirectedAgent):
         self.partner.next_cell = partner_cell
         self.partner.next_orientation = p_orientation
         partner_cell.enter(self.partner)
-        print(self.pos, leader_cell.pos, self.next_orientation)
+        print(self.pos, leader_cell.pos, self.next_orientation, self.model.schedule.epochs)
         print(self.partner.pos, partner_cell.pos, self.partner.next_orientation)
         return leader_cell, partner_cell
 
     def dist(self, start, goal):
         return np.abs(start[0] - goal[0]) + np.abs(start[1] - goal[1])
+
+    def maneuver_out_of_bounds(self, maneuver):
+        width, height = self.model.dimensions
+        x, y = maneuver
+        if 0 <= x < width and 0 <= y < height:
+            return False
+        return True
 
     def offset_maneuvers(self):
         leader_pos = self.pos
@@ -104,6 +114,8 @@ class DirectedPartnerAgent(DirectedAgent):
 
             leader_move = leader_pos[0] + leader_offset[0], leader_pos[1] + leader_offset[1]
             partner_move = leader_pos[0] + partner_offset[0], leader_pos[1] + partner_offset[1]
+            if self.maneuver_out_of_bounds(leader_move) or self.maneuver_out_of_bounds(partner_move):
+                continue
             offset_move = (leader_move, leader_orientation), (partner_move, partner_orientation)
 
             maneuvers.append(offset_move)

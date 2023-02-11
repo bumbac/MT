@@ -10,21 +10,28 @@ class Agent(mesa.Agent):
         super().__init__(uid, model)
         self.name = str(uid)
         self.color = create_color(self)
-        self.confirm_move = False
-        self.partner = None
         self.head = None
         self.tail = None
         self.cell = None
         self.next_cell = None
+        self.confirm_move = False
+        self.moved = False
         self.finished_move = False
-        self.k = {KS: 1.5,
+        self.partner = None
+        self.k = {KS: 3.5,
                   KO: 0.5,
-                  KD: 0.1,
+                  KD: 0.5,
                   GAMMA: 0.1}
 
-    def select_cell(self, sff):
+    def reset(self):
         self.head = None
         self.tail = None
+        self.confirm_move = False
+        self.next_cell = None
+        self.finished_move = False
+        self.moved = False
+
+    def select_cell(self, sff):
         cells = self.model.grid.get_neighborhood(self.pos, moore=True)
         attraction = self.attraction(sff, cells)
         coords = self.stochastic_choice(attraction)
@@ -37,22 +44,21 @@ class Agent(mesa.Agent):
     def update_color(self, value):
         self.color = create_color(self)
 
-    def move(self, cell) -> None:
-        print(self.pos, end="\t")
+    def move(self):
+        # if self.finished_move:
+        #     return None
+        cell = self.next_cell
         self.model.grid.move_agent(self, cell.pos)
-        print(self.pos)
-        self.model.of[cell.pos[1], cell.pos[1]] = OCCUPIED
+        self.model.of[cell.pos[1], cell.pos[0]] = OCCUPIED
         # prev cell
         prev_cell = self.cell
-        self.next_cell = None
-        self.confirm_move = False
         self.cell.leave()
-        self.model.of[self.cell.pos[1], self.cell.pos[1]] = EMPTY
+        self.model.of[self.cell.pos[1], self.cell.pos[0]] = EMPTY
         # current cell
         self.cell = cell
         self.cell.agent = self
         self.cell.winner = None
-        if self.tail:
+        if self.tail is not None:
             self.tail.head = None
             self.tail = None
         self.cell.evacuate()
@@ -82,7 +88,9 @@ class Agent(mesa.Agent):
             # S belongs to [0, 1]
             S = sff[pos[1], pos[0]]
             # O is 0 or 1
-            Occupy = self.model.of[pos[1], pos[0]]
+            Occupy = 0
+            if len(self.model.grid.grid[pos[0]][pos[1]]) > 1:
+                Occupy = 1
             # D is 0 or 1
             D = self.is_diagonal(pos)
             # notice the missing occupancy factor (ko and Occupy)
