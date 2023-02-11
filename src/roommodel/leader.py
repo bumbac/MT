@@ -14,14 +14,12 @@ class LeaderAgent(Agent):
         # leader tries to go around
         self.k[KO] = 1.0
 
-    def step(self) -> None:
+    def step(self):
         self.reset()
         sff = self.model.sff["Leader"]
         return self.select_cell(sff)
 
     def move(self):
-        # if self.finished_move:
-        #     return None
         cell = self.next_cell
         self.model.sff_update([cell.pos, cell.pos], "Follower")
         return super().move()

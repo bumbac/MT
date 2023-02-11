@@ -1,7 +1,6 @@
 import mesa
 
 from .cell import Cell
-from .utils.algorithms import scc_graph
 
 
 class SequentialActivation(mesa.time.BaseScheduler):
@@ -37,7 +36,6 @@ class SequentialActivation(mesa.time.BaseScheduler):
         for agent in self.removed_agents.values():
             self.remove(agent)
 
-        self.model.graph = self.model.reset_graph()
         self.steps += 1
         self.time += 1
 

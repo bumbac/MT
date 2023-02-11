@@ -84,7 +84,7 @@ class RoomModel(mesa.Model):
         bonus_mask = np.ones_like(copy_room) * AREA_STATIC_BOOSTER
         tl_x, tl_y = interest_area[0]
         rb_x, rb_y = interest_area[1]
-        bonus_mask[tl_y:rb_y+1, tl_x:rb_x+1] = 0
+        bonus_mask[rb_y:tl_y+1, tl_x:rb_x+1] = 0
         # center of area
         coords = ((rb_x - tl_x)//2 + tl_x, (rb_y - tl_y)//2 + tl_y)
         if focus:
@@ -92,7 +92,7 @@ class RoomModel(mesa.Model):
         np_coords = (coords[1], coords[0])
         copy_room[np_coords] = MAP_SYMBOLS[GATE]
         static_field = compute_static_field(copy_room)
-        static_field = static_field + bonus_mask
+        static_field = static_field * bonus_mask
         return normalize_grid(static_field)
 
     def generate_uid(self):

@@ -26,8 +26,6 @@ class DirectedPartnerAgent(DirectedAgent):
         return self.select_cell(sff)
 
     def move(self):
-        # if self.finished_move:
-        #     return None
         if self.partner is None:
             # move as single agent
             return super().move()

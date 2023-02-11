@@ -23,11 +23,8 @@ class DirectedAgent(Agent):
             self.next_orientation, shift = self.orientation.twist(self.pos, self.next_cell)
 
     def move(self):
-        # if self.finished_move:
-        #     return None
         cell = self.next_cell
         self.orientation = self.next_orientation
-        print("success", self.pos, cell.pos, self.unique_id)
         return super().move()
 
     def calculate_orientation(self, cell):

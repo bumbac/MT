@@ -4,7 +4,7 @@ import os
 from .cell import Cell
 from .agent import Agent
 from .follower import FollowerAgent
-from .leader import LeaderAgent, SwitchingAgent, LeaderDirectedAgent
+from .leader import LeaderAgent
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 from .goal import GateGoal, AreaGoal

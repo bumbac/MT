@@ -44,7 +44,7 @@ class Cell(Agent):
 
     def advance(self) -> None:
         if self.winner is not None:
-            print(self.winner.unique_id, "advance", self.winner.pos, self.winner.next_cell)
+            print(self.winner.unique_id, "advance", self.winner.pos, self.winner.next_cell.pos)
             if self.winner.head is not None:
                 self.decycle()
             else:

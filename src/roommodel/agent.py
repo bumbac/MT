@@ -18,7 +18,7 @@ class Agent(mesa.Agent):
         self.moved = False
         self.finished_move = False
         self.partner = None
-        self.k = {KS: 3.5,
+        self.k = {KS: 10,
                   KO: 0.5,
                   KD: 0.5,
                   GAMMA: 0.1}
@@ -70,8 +70,6 @@ class Agent(mesa.Agent):
             self.tail.bubbledown()
 
     def move(self):
-        # if self.finished_move:
-        #     return None
         cell = self.next_cell
         self.model.grid.move_agent(self, cell.pos)
         self.model.of[cell.pos[1], cell.pos[0]] = OCCUPIED
