@@ -24,7 +24,7 @@ class Cell(Agent):
                     self.winner.head = self.agent
                     self.agent.tail = self.winner
 
-    def decycle(self):
+    def bubbleup(self):
         head = self.winner
         origin = self.winner
         while head.head is not None:
@@ -38,7 +38,7 @@ class Cell(Agent):
 
     def advance(self):
         if self.winner is not None:
-            head = self.decycle()
+            head = self.bubbleup()
             if head.next_cell:
                 if head.next_cell.winner is head:
                     head.move()

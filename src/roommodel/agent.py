@@ -2,7 +2,7 @@ import mesa
 import numpy as np
 
 from .utils.portrayal import create_color
-from .utils.constants import SFF_OBSTACLE, KS, KO, KD, GAMMA, OCCUPIED, EMPTY
+from .utils.constants import SFF_OBSTACLE, KS, KO, KD, GAMMA, OCCUPIED_CELL, EMPTY_CELL
 
 
 class Agent(mesa.Agent):
@@ -18,7 +18,7 @@ class Agent(mesa.Agent):
         self.moved = False
         self.finished_move = False
         self.partner = None
-        self.k = {KS: 30,
+        self.k = {KS: 3.5,
                   KO: 0.5,
                   KD: 0.5,
                   GAMMA: 0.1}
@@ -73,11 +73,11 @@ class Agent(mesa.Agent):
     def move(self):
         cell = self.next_cell
         self.model.grid.move_agent(self, cell.pos)
-        self.model.of[cell.pos[1], cell.pos[0]] = OCCUPIED
+        self.model.of[cell.pos[1], cell.pos[0]] = OCCUPIED_CELL
         # prev cell
         prev_cell = self.cell
         self.cell.leave()
-        self.model.of[self.cell.pos[1], self.cell.pos[0]] = EMPTY
+        self.model.of[self.cell.pos[1], self.cell.pos[0]] = EMPTY_CELL
         # current cell
         self.cell = cell
         self.next_cell = None
@@ -118,7 +118,7 @@ class Agent(mesa.Agent):
             if len(self.model.grid.grid[pos[0]][pos[1]]) > 1:
                 Occupy = 1
             # D is 0 or 1
-            D = self.is_diagonal(pos)
+            D = int(self.is_diagonal(pos))
             # notice the missing occupancy factor (ko and Occupy)
             P_s['top'][pos] = np.exp((-ks) * S) * (1 - kd * D)
             P_s['bottom_sum'] += P_s['top'][pos]
