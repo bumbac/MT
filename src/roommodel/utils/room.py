@@ -54,7 +54,7 @@ def normalize_grid(static_field):
     return static_field / np.nanmax(static_field[static_field != np.inf])
 
 
-def compute_static_field(grid, normalize=True):
+def compute_static_field(grid, normalize=False):
     @dataclass
     class Node:
         coords: (int, int)

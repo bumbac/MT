@@ -1,5 +1,8 @@
-import numpy as np
 import os
+import time
+import copy
+import numpy as np
+import pickle
 
 from .cell import Cell
 from .follower import FollowerAgent
@@ -8,19 +11,52 @@ from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 from .goal import GateGoal, AreaGoal
 from .utils.constants import MAP_SYMBOLS, OBSTACLE, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED, EXIT_GOAL_SYMBOL,\
-    AREA_GOAL_SYMBOL, ORIENTATION
+    AREA_GOAL_SYMBOL, ORIENTATION, GATE, EMPTY
+from .utils.room import compute_static_field, normalize_grid
 
 
 class FileLoader:
     def __init__(self, filename):
         if not os.path.isfile(filename):
             raise FileNotFoundError("Map file not found.")
+        self.filename = filename
         self.width = 0
         self.height = 0
         self.gate = 0
         self.room = None
         self.goals = []
-        with open(filename) as f:
+        self.map_hash = None
+        self.load_topology()
+        self.sff = {}
+        self.hash_control_active = True
+        self.load_sff()
+        self.directed_generator = None
+        self.leader_generator = None
+        self.follower_generator = None
+        self.pairs_directed_generator = None
+        self.goal_generator = None
+        self.sff_generator = None
+
+    def dimensions(self) -> (int, int):
+        return self.width, self.height
+
+    def get_room(self):
+        return self.room
+
+    def get_gate(self):
+        return self.gate
+
+    def get_sff(self):
+        if len(self.sff) == 0:
+            raise ValueError("Calculated SFF is empty.")
+        return self.sff
+
+    def load_topology(self):
+        if self.filename is None:
+            raise FileNotFoundError("Filename for map loading cannot be None.")
+        if not os.path.isfile(self.filename):
+            raise FileExistsError("File", self.filename, " for map loading not found.")
+        with open(self.filename) as f:
             lines = f.readlines()
             if len(lines) == 0:
                 raise ValueError("Map file is empty.")
@@ -46,7 +82,7 @@ class FileLoader:
                         continue
                     if point in self.pos.keys():
                         self.pos[point].append((x, _y))
-            for goal_line in lines[height:]:
+            for goal_line in lines[height+1:]:
                 tokens = goal_line.split()
                 goal_symbol = tokens[0]
                 target = tokens[-1]
@@ -61,21 +97,6 @@ class FileLoader:
                 if goal_symbol == AREA_GOAL_SYMBOL:
                     area_goal = [AREA_GOAL_SYMBOL, [lt, rb], target]
                     self.goals.append(area_goal)
-        self.directed_generator = None
-        self.leader_generator = None
-        self.follower_generator = None
-        self.pairs_directed_generator = None
-        self.goal_generator = None
-        self.sff_generator = None
-
-    def dimensions(self) -> (int, int):
-        return self.width, self.height
-
-    def get_room(self):
-        return self.room
-
-    def get_gate(self):
-        return self.gate
 
     def get_goals(self, model):
         goals_list = []
@@ -126,6 +147,8 @@ class FileLoader:
                 a.next_cell = a.cell
 
         if agent_type == PAIR_DIRECTED:
+            if len(self.pos[PAIR_DIRECTED]) == 0:
+                return self.pos[agent_type]
             # pairs
 
             # calculate orientation of paired agents
@@ -177,3 +200,61 @@ class FileLoader:
                 cell = Cell(model.generate_uid(), model, coords)
                 model.grid.place_agent(cell, coords)
         return model.grid[self.gate[0]][self.gate[1]][0]
+
+    def load_sff(self):
+        if self.filename is None:
+            raise FileNotFoundError("Filename for map loading cannot be None.")
+        if not os.path.isfile(self.filename):
+            raise FileExistsError("File", self.filename, "for map loading not found.")
+        topology_folder = os.path.dirname(self.filename)
+        maps_folder = os.path.dirname(topology_folder)
+        filename_without_type = self.filename.split(os.sep)[-1][:- len(".txt")]
+        data_file = maps_folder + "/data/" + filename_without_type + ".data"
+        if not os.path.isfile(data_file):
+            self.process_sff(data_file)
+        with open(self.filename) as f:
+            lines = f.readlines()
+            if len(lines) == 0:
+                raise ValueError("Map file is empty.")
+            lines = [line.rstrip() for line in lines]
+            map_hash = self.deterministic_hash(self.room)
+            hash_line = int(lines[self.height])
+        if map_hash != hash_line and self.hash_control_active:
+            self.process_sff(data_file)
+        with open(data_file, "rb") as f:
+            self.sff = pickle.load(f)
+
+    def deterministic_hash(self, grid):
+        bytes_value = grid.data.tobytes()
+        tokens = []
+        idx = 0
+        stride = 256
+        while idx < len(bytes_value):
+            tokens.append(bytes_value[idx: idx + stride])
+            idx += stride
+        hash_value = sum([int.from_bytes(token, byteorder="big") for token in tokens])
+        return hash_value
+
+    def process_sff(self, data_file):
+        print("Calculating SFF for", self.filename)
+        start = time.time()
+        room = copy.deepcopy(self.room)
+        gate = self.gate
+        room[gate[1], gate[0]] = MAP_SYMBOLS[EMPTY]
+        self.sff = {}
+        for x in range(self.width):
+            for y in range(self.height):
+                if room[y, x] == MAP_SYMBOLS[OBSTACLE]:
+                    continue
+                room[y, x] = MAP_SYMBOLS[GATE]
+                self.sff[(x, y)] = compute_static_field(room, normalize=False)
+                room[y, x] = MAP_SYMBOLS[EMPTY]
+        print("SFF calculated in:", time.time() - start, "seconds.")
+        with open(data_file, "wb") as f:
+            pickle.dump(self.sff, f)
+        map_hash = self.deterministic_hash(self.room)
+        with open(self.filename) as f:
+            lines = f.readlines()
+        lines[self.height] = str(map_hash)+"\n"
+        with open(self.filename, "w") as f:
+            f.writelines(lines)

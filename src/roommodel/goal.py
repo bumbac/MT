@@ -63,7 +63,6 @@ class AreaGoal(Goal):
         n_goal = 0
         if self.target == "Follower" or self.target == "All":
             n_agents += self.agents_in_area("")
-            n_goal += len(self.model.follower_positions)
         if self.target == "Leader" or self.target == "All":
             n_agents += self.agents_in_area("")
             n_goal += len(self.model.leader_positions)
@@ -83,7 +82,7 @@ class AreaGoal(Goal):
 
     def update(self):
         self.corner = self.model.schedule.time % 5
-        self.model.sff_update(self.area, key="Leader", focus=self.edges[self.corner])
+        self.model.sff_update(self.area, key="Leader") #, focus=self.edges[self.corner])
 
 
 class GateGoal(Goal):
@@ -97,7 +96,6 @@ class GateGoal(Goal):
         n_goal = 0
         if self.target == "Follower" or self.target == "All":
             n_agents += self.model.n_evacuated_followers
-            n_goal += len(self.model.follower_positions)
             n_goal += len(self.model.directed_positions)
             n_goal += len(self.model.directed_pairs_positions)
         if self.target == "Leader" or self.target == "All":
