@@ -44,7 +44,7 @@ class Cell(Agent):
                     head.move()
 
     def update_color(self, value):
-        color = [0, 255, 0]
+        color = [0, 0, 0]
         if 0 <= value <= 1:
             color = [0, 255, int(255*value)]
         self.color = rgb_to_hex(*color)

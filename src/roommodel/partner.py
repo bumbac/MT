@@ -7,7 +7,7 @@ from .utils.portrayal import create_color
 
 
 class DirectedPartnerAgent(DirectedAgent):
-    def __init__(self, uid: int, model: mesa.Model):
+    def __init__(self, uid, model):
         super().__init__(uid, model)
         self.name = "Follower Pair: " + self.name
         self.leader = True

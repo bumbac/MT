@@ -1,8 +1,38 @@
-from collections import deque
+from queue import PriorityQueue
 from dataclasses import dataclass
+from math import ceil, log
 
 import numpy as np
 from .constants import MAP_SYMBOLS, MAP_VALUES
+
+
+@dataclass
+class Node:
+    coords: (int, int)
+    obstacle: bool
+    price: int = float("inf")
+    visited: bool = False
+
+    def enter(self, parent):
+        self.price = parent.price + self.distance(parent)
+
+    def distance(self, other):
+        sigma = np.power(self.coords[0] - other.coords[0], 2)
+        sigma += np.power(self.coords[1] - other.coords[1], 2)
+        return np.sqrt(sigma)
+
+    def neighbours(self, width, height):
+        valid_coords = []
+        for x in [-1, 0, 1]:
+            for y in [-1, 0, 1]:
+                if 0 <= self.coords[0] + x < width and 0 <= self.coords[1] + y < height:
+                    if x == 0 and y == 0:
+                        continue
+                    valid_coords.append((self.coords[0] + x, self.coords[1] + y))
+        return valid_coords
+
+    def __lt__(self, other):
+        return self.price < other.price
 
 
 def create_grid(width, height, gate=None):
@@ -55,31 +85,7 @@ def normalize_grid(static_field):
 
 
 def compute_static_field(grid, normalize=False):
-    @dataclass
-    class Node:
-        coords: (int, int)
-        obstacle: bool
-        price: int = float("inf")
-
-        def enter(self, parent):
-            self.price = parent.price + self.distance(parent)
-
-        def distance(self, other):
-            sigma = np.power(self.coords[0] - other.coords[0], 2)
-            sigma += np.power(self.coords[1] - other.coords[1], 2)
-            return np.sqrt(sigma)
-
-        def neighbours(self, width, height):
-            valid_coords = []
-            for x in [-1, 0, 1]:
-                for y in [-1, 0, 1]:
-                    if 0 <= self.coords[0] + x < width and 0 <= self.coords[1] + y < height:
-                        if x == 0 and y == 0:
-                            continue
-                        valid_coords.append((self.coords[0] + x, self.coords[1] + y))
-            return valid_coords
-
-    q = deque()
+    q = PriorityQueue()
     grid_nodes = []
     gate = None
     height, width = grid.shape
@@ -98,19 +104,28 @@ def compute_static_field(grid, normalize=False):
         raise ValueError("Gate is not present in the map. Can't compute static field.")
 
     gate.price = 0
-    q.append(gate)
-    while q:
-        current_node = q.pop()
+    q.put(gate)
+    cnt = 0
+    closest_2power = int(ceil(log(width*height) / log(2)))
+    closest_2mod = 2**closest_2power
+    while q.qsize() > 0:
+        cnt += 1
+        if cnt % closest_2mod == 0:
+            print(q.qsize(), cnt)
+        current_node = q.get()
+        current_node.visited = True
         while current_node.obstacle:
             current_node = q.pop()
         for coords in current_node.neighbours(width, height):
             x, y = coords
             other_node = grid_nodes[y][x]
             if not other_node.obstacle:
-                distance = current_node.distance(other_node)
-                if current_node.price + distance < other_node.price:
-                    other_node.enter(current_node)
-                    q.append(other_node)
+                if not other_node.visited:
+                    other_node.visited = True
+                    distance = current_node.distance(other_node)
+                    if current_node.price + distance < other_node.price:
+                        other_node.enter(current_node)
+                        q.put(other_node)
     static_field = np.zeros(grid.shape)
     for x in range(width):
         for y in range(height):

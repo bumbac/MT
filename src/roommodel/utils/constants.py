@@ -173,8 +173,6 @@ def expand_moves():
 
 
 def valid_position(combination):
-    LEADER = 0
-    PARTNER = 1
     POSITION = 0
     ORIENTATION_VALUE = 1
     leader, partner = combination
@@ -210,8 +208,8 @@ def movement_cost(combination, orientation):
 
 
 def combine(orientation):
-    LEADER = 0
-    PARTNER = 1
+    LEADER_IDX = 0
+    PARTNER_IDX = 1
     POSITION = 0
     ORIENTATION_VALUE = 1
     leader_positions = possible_moves()[orientation]
@@ -219,7 +217,7 @@ def combine(orientation):
     leader_partner = [(l, p) for l in leader_positions for p in partner_positions]
 
     # leader and partner in the same position
-    leader_partner = list(filter(lambda lp: lp[LEADER][POSITION] != lp[PARTNER][POSITION], leader_partner))
+    leader_partner = list(filter(lambda lp: lp[LEADER_IDX][POSITION] != lp[PARTNER_IDX][POSITION], leader_partner))
 
     # leader and partner are separated
     leader_partner = list(filter(connected, leader_partner))
@@ -229,11 +227,11 @@ def combine(orientation):
 
     # leader and partner have same direction
     different_dir = list(
-        filter(lambda lp: lp[LEADER][ORIENTATION_VALUE] != lp[PARTNER][ORIENTATION_VALUE], leader_partner))
+        filter(lambda lp: lp[LEADER_IDX][ORIENTATION_VALUE] != lp[PARTNER_IDX][ORIENTATION_VALUE], leader_partner))
 
     # leader and partner don't have same direction
     leader_partner = list(
-        filter(lambda lp: lp[LEADER][ORIENTATION_VALUE] == lp[PARTNER][ORIENTATION_VALUE], leader_partner))
+        filter(lambda lp: lp[LEADER_IDX][ORIENTATION_VALUE] == lp[PARTNER_IDX][ORIENTATION_VALUE], leader_partner))
 
     # leader and partner are aligned side by side
     leader_partner = list(filter(valid_position, leader_partner))

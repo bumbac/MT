@@ -1,6 +1,8 @@
 import numpy as np
 import mesa
 
+from .utils.constants import LEADER
+
 
 class Goal:
     def __init__(self, model: mesa.model):
@@ -37,7 +39,7 @@ class AreaGoal(Goal):
         self.target = target
         self.edges = self.create_edges()
 
-    def agents_in_area(self, agent_type="Follower"):
+    def agents_in_area(self):
         cnt = 0
         tl_x, tl_y = self.area[0]
         rb_x, rb_y = self.area[1]
@@ -59,17 +61,8 @@ class AreaGoal(Goal):
         return a*b
 
     def reached_checkpoint(self) -> bool:
-        n_agents = 0
-        n_goal = 0
-        if self.target == "Follower" or self.target == "All":
-            n_agents += self.agents_in_area("")
-        if self.target == "Leader" or self.target == "All":
-            n_agents += self.agents_in_area("")
-            n_goal += len(self.model.leader_positions)
-        pos = self.edges[self.corner]
-        cell = self.model.grid[pos[0]][pos[1]][0]
-        # if cell.get_agent() is not None:
-        #     self.update()
+        n_agents = self.agents_in_area()
+        n_goal = len(self.model.agent_positions[LEADER])
         return n_agents > 0
 
     def create_edges(self):
@@ -92,15 +85,8 @@ class GateGoal(Goal):
         self.target = target
 
     def reached_checkpoint(self) -> bool:
-        n_agents = 0
-        n_goal = 0
-        if self.target == "Follower" or self.target == "All":
-            n_agents += self.model.n_evacuated_followers
-            n_goal += len(self.model.directed_positions)
-            n_goal += len(self.model.directed_pairs_positions)
-        if self.target == "Leader" or self.target == "All":
-            n_agents += self.model.n_evacuated_leaders
-            n_goal += len(self.model.leader_positions)
+        n_agents = self.model.n_evacuated_followers + self.model.n_evacuated_leaders
+        n_goal = sum([len(self.model.agent_positions[key]) for key in self.model.agent_positions])
         return n_agents == n_goal
 
 

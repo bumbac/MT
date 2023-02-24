@@ -6,8 +6,10 @@ import mesa
 from .goal import Goal
 from .scheduler import SequentialActivation
 from .file_loader import FileLoader
-from .utils.room import compute_static_field, normalize_grid
-from .utils.constants import AREA_STATIC_BOOSTER, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED, MAP_SYMBOLS, GATE
+from .utils.room import normalize_grid
+from .utils.constants import AREA_STATIC_BOOSTER, OCCUPIED_CELL, ORIENTATION
+from .utils.algorithms import pair_positions
+from .partner import DirectedPartnerAgent
 
 
 class RoomModel(mesa.Model):
@@ -26,17 +28,57 @@ class RoomModel(mesa.Model):
         self.n_evacuated_followers = 0
         self.n_evacuated_leaders = 0
         self.cell_gate = self.file_loader.place_cells(self)
-        self.leader_positions = self.file_loader.place_agents(self, LEADER)
-        self.directed_positions = self.file_loader.place_agents(self, DIRECTED)
-        self.directed_pairs_positions = self.file_loader.place_agents(self, PAIR_DIRECTED)
+        self.agent_positions = self.file_loader.place_agents(self)
         self.graph = self.reset_graph()
         for a in self.schedule.agent_buffer():
             cell = a.cell
             cell.agent = a
             self.grid.move_agent(a, cell.pos)
 
+    def form_pairs(self):
+        grid = np.zeros(shape=self.dimensions)
+        for agent in self.schedule.get_agents().values():
+            if agent.partner is None and not agent.name.startswith("Leader"):
+                grid[agent.pos] = OCCUPIED_CELL
+        positions = pair_positions(grid)
+        for position in positions[:1]:
+            leader_position, partner_position = position
+
+            leader_cell = self.grid.grid[leader_position[0]][leader_position[1]][0]
+            leader_agent = leader_cell.agent
+            self.replace_agent(leader_agent)
+            partner_cell = self.grid.grid[partner_position[0]][partner_position[1]][0]
+            partner_agent = partner_cell.agent
+            self.replace_agent(partner_agent)
+
+            leader = DirectedPartnerAgent(leader_agent.unique_id, self)
+            leader_cell.agent = leader
+            leader.cell = leader_cell
+            partner = DirectedPartnerAgent(partner_agent.unique_id, self)
+            partner_cell.agent = partner
+            partner.cell = partner_cell
+
+            self.schedule.add(leader)
+            self.schedule.add(partner)
+            self.grid.place_agent(leader, leader_position)
+            self.grid.place_agent(partner, partner_position)
+
+            for orientation in ORIENTATION:
+                leader.orientation = orientation
+                if leader.partner_coords() == partner_position:
+                    partner.orientation = orientation
+                    break
+
+            leader.add_partner(partner)
+
+    def replace_agent(self, agent):
+        self.grid.remove_agent(agent)
+        self.schedule.remove_agent(agent)
+
     def step(self):
         print("-----------")
+        self.form_pairs()
+
         if self.current_goal().reached_checkpoint():
             if self.checkpoint():
                 self.sff_update(self.current_goal().area, "Leader")
