@@ -60,9 +60,6 @@ class DirectedPartnerAgent(DirectedAgent):
         partner_cell.enter(self.partner)
         return leader_cell, partner_cell
 
-    def dist(self, start, goal):
-        return np.abs(start[0] - goal[0]) + np.abs(start[1] - goal[1])
-
     def maneuver_out_of_bounds(self, maneuver):
         width, height = self.model.dimensions
         x, y = maneuver

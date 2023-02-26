@@ -6,7 +6,7 @@ import pickle
 
 from .cell import Cell
 from .follower import FollowerAgent
-from .leader import LeaderAgent
+from .leader import LeaderAgent, VirtualLeader
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 from .goal import GateGoal, AreaGoal
@@ -36,6 +36,8 @@ class FileLoader:
         self.pairs_directed_generator = None
         self.goal_generator = None
         self.sff_generator = None
+        self.leader = None
+        self.virtual_leader = None
 
     def dimensions(self) -> (int, int):
         return self.width, self.height
@@ -50,6 +52,9 @@ class FileLoader:
         if len(self.sff) == 0:
             raise ValueError("Calculated SFF is empty.")
         return self.sff
+
+    def get_leader(self):
+        return self.leader, self.virtual_leader
 
     def load_topology(self):
         if self.filename is None:
@@ -120,22 +125,28 @@ class FileLoader:
         # leader
         for coords in self.pos[LEADER]:
             x, y = coords
-            a = LeaderAgent(model.generate_uid(), model)
-            model.grid.place_agent(a, coords)
-            model.schedule.add(a)
-            a.cell = model.grid[x][y][0]
-            a.next_cell = a.cell
+            self.leader = LeaderAgent(model.generate_uid(), model)
+            self.virtual_leader = VirtualLeader(model.generate_uid(), model)
+
+            model.grid.place_agent(self.leader, coords)
+            self.virtual_leader.pos = coords
+            model.schedule.add(self.virtual_leader)
+            model.schedule.add(self.leader)
+            self.leader.cell = model.grid[x][y][0]
+            self.virtual_leader.cell = None
+            self.leader.next_cell = self.leader.cell
+            self.virtual_leader.next_cell = None
             model.sff_update(model.current_goal().area, "Leader")
             model.sff_update([coords, coords], "Follower")
             agent_positions[LEADER].append(coords)
 
         for coords in self.pos[DIRECTED]:
             x, y = coords
-            a = DirectedAgent(model.generate_uid(), model)
-            model.grid.place_agent(a, coords)
-            model.schedule.add(a)
-            a.cell = model.grid[x][y][0]
-            a.next_cell = a.cell
+            leader = DirectedAgent(model.generate_uid(), model)
+            model.grid.place_agent(leader, coords)
+            model.schedule.add(leader)
+            leader.cell = model.grid[x][y][0]
+            leader.next_cell = leader.cell
             agent_positions[DIRECTED].append(coords)
 
         if len(self.pos[PAIR_DIRECTED]) == 0:

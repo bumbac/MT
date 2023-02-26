@@ -219,22 +219,16 @@ def combine(orientation):
     # leader and partner in the same position
     leader_partner = list(filter(lambda lp: lp[LEADER_IDX][POSITION] != lp[PARTNER_IDX][POSITION], leader_partner))
 
-    # leader and partner are separated
-    leader_partner = list(filter(connected, leader_partner))
-
     # leader and partner are aligned side by side
     leader_partner = list(filter(valid_position, leader_partner))
 
-    # leader and partner have same direction
-    different_dir = list(
-        filter(lambda lp: lp[LEADER_IDX][ORIENTATION_VALUE] != lp[PARTNER_IDX][ORIENTATION_VALUE], leader_partner))
+    # leader and partner are separated
+    leader_partner = list(filter(connected, leader_partner))
 
     # leader and partner don't have same direction
     leader_partner = list(
         filter(lambda lp: lp[LEADER_IDX][ORIENTATION_VALUE] == lp[PARTNER_IDX][ORIENTATION_VALUE], leader_partner))
 
-    # leader and partner are aligned side by side
-    leader_partner = list(filter(valid_position, leader_partner))
     for combination in leader_partner:
         together, lc, pc = movement_cost(combination, orientation)
         # if lc == 3 or pc == 3:

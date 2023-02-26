@@ -29,19 +29,22 @@ class RoomModel(mesa.Model):
         self.n_evacuated_leaders = 0
         self.cell_gate = self.file_loader.place_cells(self)
         self.agent_positions = self.file_loader.place_agents(self)
+        self.leader, self.virtual_leader = self.file_loader.get_leader()
         self.graph = self.reset_graph()
         for a in self.schedule.agent_buffer():
             cell = a.cell
+            if cell is None:
+                continue
             cell.agent = a
             self.grid.move_agent(a, cell.pos)
 
     def form_pairs(self):
         grid = np.zeros(shape=self.dimensions)
         for agent in self.schedule.get_agents().values():
-            if agent.partner is None and not agent.name.startswith("Leader"):
+            if agent.partner is None and agent.name.startswith("Follower"):
                 grid[agent.pos] = OCCUPIED_CELL
         positions = pair_positions(grid)
-        for position in positions[:1]:
+        for position in positions:
             leader_position, partner_position = position
 
             leader_cell = self.grid.grid[leader_position[0]][leader_position[1]][0]
