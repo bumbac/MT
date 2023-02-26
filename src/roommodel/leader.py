@@ -17,31 +17,38 @@ class LeaderAgent(Agent):
 
     def step(self):
         self.reset()
-        sff = self.model.sff["Leader"]
+        distance, pos = self.most_distant()
+        sff = self.model.sff_compute([pos, pos])
         return self.select_cell(sff)
 
-    def move(self):
-        cell = self.next_cell
-        self.model.sff_update([cell.pos, cell.pos], "Follower")
-        return super().move()
+    def most_distant(self):
+        distances = []
+        for uid in self.model.schedule._agents:
+            agent = self.model.schedule._agents[uid]
+            d = self.dist(self.pos, agent.pos)
+            distances.append((d, agent.pos))
+        distances = sorted(distances, key=lambda x: x[0], reverse=True)
+        return distances[0]
 
 
-class SwitchingAgent(LeaderAgent):
+class VirtualLeader(LeaderAgent):
     def __init__(self, uid, model):
         super().__init__(uid, model)
-        # self.name = "Switching " + self.name
+        self.color = "w"
+        self.name = "Virtual " + self.name
+        self.k[KO] = 1
 
-    def advance(self) -> None:
-        agent = self.next_cell.agent
-        if not agent:
-            return
-        if agent.tail:
-            agent.tail.head = None
-        # switching mechanism
-        agent.head = None
-        agent.tail = None
-        agent.next_cell = self.cell
-        self.cell.winner = agent
+    def step(self):
+        self.reset()
+        cells = self.model.grid.get_neighborhood(self.pos, include_center=True, moore=True)
+        sff = self.model.sff["Leader"]
+        attraction = self.attraction(sff, cells)
+        coords = self.stochastic_choice(attraction)
+        cell = self.model.grid[coords[0]][coords[1]][0]
+        self.pos = cell.pos
+
+    def advance(self):
+        self.model.sff_update([self.pos, self.pos], "Follower")
 
 
 class LeaderDirectedAgent(DirectedAgent):

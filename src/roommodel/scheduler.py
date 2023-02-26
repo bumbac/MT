@@ -33,9 +33,6 @@ class SequentialActivation(mesa.time.BaseScheduler):
         for cell in self._cells.values():
             cell.advance()
 
-        for agent in self.removed_agents.values():
-            self.remove(agent)
-
         self.steps += 1
         self.time += 1
 
@@ -44,3 +41,7 @@ class SequentialActivation(mesa.time.BaseScheduler):
 
     def remove_agent(self, agent: mesa.Agent):
         self.removed_agents[agent.unique_id] = agent
+        del self._agents[agent.unique_id]
+
+    def get_agents(self):
+        return self._agents

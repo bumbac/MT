@@ -7,7 +7,7 @@ from .utils.portrayal import create_color
 
 
 class DirectedPartnerAgent(DirectedAgent):
-    def __init__(self, uid: int, model: mesa.Model):
+    def __init__(self, uid, model):
         super().__init__(uid, model)
         self.name = "Follower Pair: " + self.name
         self.leader = True
@@ -59,9 +59,6 @@ class DirectedPartnerAgent(DirectedAgent):
         self.partner.next_orientation = p_orientation
         partner_cell.enter(self.partner)
         return leader_cell, partner_cell
-
-    def dist(self, start, goal):
-        return np.abs(start[0] - goal[0]) + np.abs(start[1] - goal[1])
 
     def maneuver_out_of_bounds(self, maneuver):
         width, height = self.model.dimensions

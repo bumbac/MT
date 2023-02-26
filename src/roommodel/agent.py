@@ -38,7 +38,7 @@ class Agent(mesa.Agent):
         self.moved = False
 
     def select_cell(self, sff):
-        cells = self.model.grid.get_neighborhood(self.pos, moore=True)
+        cells = self.model.grid.get_neighborhood(self.pos, moore=True, include_center=True)
         attraction = self.attraction(sff, cells)
         coords = self.stochastic_choice(attraction)
         cell = self.model.grid[coords[0]][coords[1]][0]
@@ -102,7 +102,7 @@ class Agent(mesa.Agent):
         ks = self.k[KS]
         ko = self.k[KO]
         kd = self.k[KD]
-
+        discipline = self.dist(self.pos, self.model.leader.pos)
         # mixing P_s and P_o based od ko sensitivity
         P_s = {'top': {}, 'bottom_sum': 0}
         attraction_static = {}
@@ -110,9 +110,16 @@ class Agent(mesa.Agent):
         attraction_static_occupancy = {}
         # results
         attraction_final = {}
+
+        offset_sff_neighbourhood = np.full(shape=(5, 5), fill_value=float("inf"))
         for pos in cells:
+            offset_cell = pos[0] - self.pos[0] + 2, pos[1] - self.pos[1] + 2
+            offset_sff_neighbourhood[offset_cell] = sff[pos[1], pos[0]]
+        offset_sff_neighbourhood -= np.min(offset_sff_neighbourhood)
+        for pos in cells:
+            offset_cell = pos[0] - self.pos[0] + 2, pos[1] - self.pos[1] + 2
             # S belongs to [0, 1]
-            S = sff[pos[1], pos[0]]
+            S = offset_sff_neighbourhood[offset_cell]
             # O is 0 or 1
             Occupy = 0
             if len(self.model.grid.grid[pos[0]][pos[1]]) > 1:
@@ -168,3 +175,10 @@ class Agent(mesa.Agent):
         if agent_pos is None:
             agent_pos = self.pos
         return (agent_pos[0] != pos[0]) and (agent_pos[1] != pos[1])
+
+    def dist(self, start, goal):
+        return np.abs(start[0] - goal[0]) + np.abs(start[1] - goal[1])
+
+    def leader_los(self):
+        leader = self.model.leader
+        return self.dist(self.pos, leader.pos)

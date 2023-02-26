@@ -6,7 +6,7 @@ import pickle
 
 from .cell import Cell
 from .follower import FollowerAgent
-from .leader import LeaderAgent
+from .leader import LeaderAgent, VirtualLeader
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 from .goal import GateGoal, AreaGoal
@@ -36,6 +36,8 @@ class FileLoader:
         self.pairs_directed_generator = None
         self.goal_generator = None
         self.sff_generator = None
+        self.leader = None
+        self.virtual_leader = None
 
     def dimensions(self) -> (int, int):
         return self.width, self.height
@@ -50,6 +52,9 @@ class FileLoader:
         if len(self.sff) == 0:
             raise ValueError("Calculated SFF is empty.")
         return self.sff
+
+    def get_leader(self):
+        return self.leader, self.virtual_leader
 
     def load_topology(self):
         if self.filename is None:
@@ -113,85 +118,82 @@ class FileLoader:
                 goals_list.append(AreaGoal(model, [lt, rb], target))
         return goals_list
 
-    def place_agents(self, model, agent_type):
+    def place_agents(self, model):
+        agent_positions = {LEADER: [],
+                           DIRECTED: [],
+                           PAIR_DIRECTED: []}
         # leader
-        if agent_type == LEADER:
-            for coords in self.pos[LEADER]:
-                x, y = coords
-                a = LeaderAgent(model.generate_uid(), model)
-                model.grid.place_agent(a, coords)
-                model.schedule.add(a)
-                a.cell = model.grid[x][y][0]
-                a.next_cell = a.cell
-                model.sff_update(model.current_goal().area, "Leader")
-                model.sff_update([coords, coords], "Follower")
+        for coords in self.pos[LEADER]:
+            x, y = coords
+            self.leader = LeaderAgent(model.generate_uid(), model)
+            self.virtual_leader = VirtualLeader(model.generate_uid(), model)
 
-        if agent_type == FOLLOWER:
-            # followers
-            for coords in self.pos[FOLLOWER]:
-                x, y = coords
-                a = FollowerAgent(model.generate_uid(), model)
-                model.grid.place_agent(a, coords)
-                model.schedule.add(a)
-                a.cell = model.grid[x][y][0]
-                a.next_cell = a.cell
+            model.grid.place_agent(self.leader, coords)
+            self.virtual_leader.pos = coords
+            model.schedule.add(self.virtual_leader)
+            model.schedule.add(self.leader)
+            self.leader.cell = model.grid[x][y][0]
+            self.virtual_leader.cell = None
+            self.leader.next_cell = self.leader.cell
+            self.virtual_leader.next_cell = None
+            model.sff_update(model.current_goal().area, "Leader")
+            model.sff_update([coords, coords], "Follower")
+            agent_positions[LEADER].append(coords)
 
-        if agent_type == DIRECTED:
-            # directed
-            for coords in self.pos[DIRECTED]:
-                x, y = coords
-                a = DirectedAgent(model.generate_uid(), model)
-                model.grid.place_agent(a, coords)
-                model.schedule.add(a)
-                a.cell = model.grid[x][y][0]
-                a.next_cell = a.cell
+        for coords in self.pos[DIRECTED]:
+            x, y = coords
+            leader = DirectedAgent(model.generate_uid(), model)
+            model.grid.place_agent(leader, coords)
+            model.schedule.add(leader)
+            leader.cell = model.grid[x][y][0]
+            leader.next_cell = leader.cell
+            agent_positions[DIRECTED].append(coords)
 
-        if agent_type == PAIR_DIRECTED:
-            if len(self.pos[PAIR_DIRECTED]) == 0:
-                return self.pos[agent_type]
-            # pairs
+        if len(self.pos[PAIR_DIRECTED]) == 0:
+            return agent_positions
 
-            # calculate orientation of paired agents
-            directed_agent = DirectedPartnerAgent(0, model)
-            directed_agent.pos = self.pos[PAIR_DIRECTED][1]
-            if model.leader_positions:
-                leader_pos = model.leader_positions[0]
-                directed_agent.orientation = directed_agent.calculate_orientation(leader_pos)
-                directed_agent.orientation = ORIENTATION.EAST
-                    #directed_agent.orientation.twist(directed_agent.pos, leader_pos)
-            else:
-                raise ValueError("Leader needs to be placed first to calculate orientation of directed agents.")
+        # calculate orientation of paired agents
+        directed_agent = DirectedPartnerAgent(0, model)
+        directed_agent.pos = self.pos[PAIR_DIRECTED][1]
+        if len(self.pos[LEADER]) > 0:
+            leader_pos = self.pos[LEADER][0]
+            directed_agent.orientation = directed_agent.calculate_orientation(leader_pos)
+            # todo
+            directed_agent.orientation = ORIENTATION.EAST
+                #directed_agent.orientation.twist(directed_agent.pos, leader_pos)
+        else:
+            raise ValueError("Leader needs to be placed first to calculate orientation of directed agents.")
 
-            grid = np.zeros_like(self.room)
-            no_agent_present = 0
-            agent_present = 1
-            for coords in self.pos[PAIR_DIRECTED]:
-                np_coords = coords[1], coords[0]
-                grid[np_coords] = 1
-            # def partner_coords(self, leader=None, np_coords=True):
-            partner_id = 100
-            for idx, flag in np.ndenumerate(grid):
-                if flag == no_agent_present:
-                    continue
-                if flag > agent_present:
-                    continue
-                coords = idx[1], idx[0]
-                partner_coords = directed_agent.partner_coords(leader=coords)
-                if grid[partner_coords[1], partner_coords[0]] == agent_present:
-                    grid[idx] = partner_id
-                    grid[partner_coords[1], partner_coords[0]] = partner_id
-                    partner_id += 100
-                    leader = DirectedPartnerAgent(model.generate_uid(), model)
-                    partner = DirectedPartnerAgent(model.generate_uid(), model)
-                    model.grid.place_agent(leader, coords)
-                    model.grid.place_agent(partner, partner_coords)
-                    model.schedule.add(leader)
-                    model.schedule.add(partner)
-                    leader.cell = leader.next_cell = model.grid[coords[0]][coords[1]][0]
-                    partner.cell = partner.next_cell = model.grid[partner_coords[0]][partner_coords[1]][0]
-                    leader.orientation = ORIENTATION.EAST
-                    leader.add_partner(partner)
-        return self.pos[agent_type]
+        grid = np.zeros_like(self.room)
+        no_agent_present = 0
+        agent_present = 1
+        for coords in self.pos[PAIR_DIRECTED]:
+            np_coords = coords[1], coords[0]
+            grid[np_coords] = 1
+        partner_id = 100
+        for idx, flag in np.ndenumerate(grid):
+            if flag == no_agent_present:
+                continue
+            if flag > agent_present:
+                continue
+            coords = idx[1], idx[0]
+            partner_coords = directed_agent.partner_coords(leader=coords)
+            agent_positions[PAIR_DIRECTED].append((coords, partner_coords))
+            if grid[partner_coords[1], partner_coords[0]] == agent_present:
+                grid[idx] = partner_id
+                grid[partner_coords[1], partner_coords[0]] = partner_id
+                partner_id += 100
+                leader = DirectedPartnerAgent(model.generate_uid(), model)
+                partner = DirectedPartnerAgent(model.generate_uid(), model)
+                model.grid.place_agent(leader, coords)
+                model.grid.place_agent(partner, partner_coords)
+                model.schedule.add(leader)
+                model.schedule.add(partner)
+                leader.cell = leader.next_cell = model.grid[coords[0]][coords[1]][0]
+                partner.cell = partner.next_cell = model.grid[partner_coords[0]][partner_coords[1]][0]
+                leader.orientation = ORIENTATION.EAST
+                leader.add_partner(partner)
+        return agent_positions
 
     def place_cells(self, model):
         for x in range(self.width):
@@ -242,8 +244,12 @@ class FileLoader:
         gate = self.gate
         room[gate[1], gate[0]] = MAP_SYMBOLS[EMPTY]
         self.sff = {}
+        cnt = 0
         for x in range(self.width):
             for y in range(self.height):
+                cnt += 1
+                if cnt % 32 == 1:
+                    print(cnt, "/", self.width*self.height)
                 if room[y, x] == MAP_SYMBOLS[OBSTACLE]:
                     continue
                 room[y, x] = MAP_SYMBOLS[GATE]

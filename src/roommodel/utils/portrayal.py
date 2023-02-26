@@ -44,12 +44,29 @@ def agent_portrayal(agent):
             "Shape": "circle",
             "Color": agent.color,
             "Filled": "true",
+            "xAlign": 0.7,
+            "yAlign": 0.7,
             "Layer": 1,
             "r": 0.8,
             "text": agent.unique_id,
             "text_color": "black"
         }
         return portrayal
+
+    if agent.name.startswith("Virtual"):
+        portrayal = {
+            "Shape": "circle",
+            "Color": "White",
+            "Filled": "true",
+            "xAlign": 0.3,
+            "yAlign": 0.3,
+            "Layer": 1,
+            "r": 0.8,
+            "text": agent.unique_id,
+            "text_color": "black"
+        }
+        return portrayal
+
 
     if agent.name.startswith("Follower"):
         portrayal = {
