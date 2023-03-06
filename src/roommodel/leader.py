@@ -13,15 +13,13 @@ class LeaderAgent(Agent):
         self.color = create_color(self)
         self.name = "Leader: " + str(self.unique_id)
         # leader tries to go around
-        self.k[KO] = 0.1
+        self.k[KO] = 1
         self.k[KS] = 5
-
 
     def step(self):
         self.reset()
         distance, pos = self.middle_crowd()
         distance, pos = self.most_distant()
-        print(pos)
         sff = self.model.sff_compute([pos, pos])
         return self.select_cell(sff)
 

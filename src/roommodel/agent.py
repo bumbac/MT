@@ -125,7 +125,7 @@ class Agent(mesa.Agent):
             S = offset_sff_neighbourhood[offset_cell] * discipline
             # O is 0 or 1
             Occupy = 0
-            if len(self.model.grid.grid[pos[0]][pos[1]]) > 1:
+            if self.model.of[pos[1], pos[0]] == OCCUPIED_CELL:
                 Occupy = 1
             # D is 0 or 1
             D = int(self.is_diagonal(pos))

@@ -37,6 +37,7 @@ class RoomModel(mesa.Model):
                 continue
             cell.agent = a
             self.grid.move_agent(a, cell.pos)
+            self.of[cell.pos[1], cell.pos[0]] = OCCUPIED_CELL
 
     def form_pairs(self):
         grid = np.zeros(shape=self.dimensions)
