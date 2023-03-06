@@ -18,9 +18,9 @@ class Agent(mesa.Agent):
         self.moved = False
         self.finished_move = False
         self.partner = None
-        self.k = {KS: 3.5,
+        self.k = {KS: 5,
                   KO: 0.5,
-                  KD: 0.5,
+                  KD: 0,
                   GAMMA: 0.1}
 
     def __repr__(self):
@@ -102,7 +102,10 @@ class Agent(mesa.Agent):
         ks = self.k[KS]
         ko = self.k[KO]
         kd = self.k[KD]
-        discipline = self.dist(self.pos, self.model.leader.pos)
+        discipline = 1
+        if self.name.startswith("Follower") and self.dist(self.pos, self.model.leader.pos) > 0:
+            distance_to_leader = self.dist(self.pos, self.model.leader.pos)
+            discipline = 1 + 1 / distance_to_leader
         # mixing P_s and P_o based od ko sensitivity
         P_s = {'top': {}, 'bottom_sum': 0}
         attraction_static = {}
@@ -113,13 +116,13 @@ class Agent(mesa.Agent):
 
         offset_sff_neighbourhood = np.full(shape=(5, 5), fill_value=float("inf"))
         for pos in cells:
-            offset_cell = pos[0] - self.pos[0] + 2, pos[1] - self.pos[1] + 2
+            offset_cell = pos[1] - self.pos[1] + 2, pos[0] - self.pos[0] + 2
             offset_sff_neighbourhood[offset_cell] = sff[pos[1], pos[0]]
         offset_sff_neighbourhood -= np.min(offset_sff_neighbourhood)
         for pos in cells:
-            offset_cell = pos[0] - self.pos[0] + 2, pos[1] - self.pos[1] + 2
+            offset_cell = pos[1] - self.pos[1] + 2, pos[0] - self.pos[0] + 2
             # S belongs to [0, 1]
-            S = offset_sff_neighbourhood[offset_cell]
+            S = offset_sff_neighbourhood[offset_cell] * discipline
             # O is 0 or 1
             Occupy = 0
             if len(self.model.grid.grid[pos[0]][pos[1]]) > 1:
@@ -148,6 +151,7 @@ class Agent(mesa.Agent):
     def stochastic_choice(self, attraction):
         coords = list(attraction.keys())
         probabilities = list(attraction.values())
+        probabilities = probabilities / sum(probabilities)
         idx = np.random.choice(len(coords), p=probabilities)
         return coords[idx]
 

@@ -3,16 +3,17 @@ import time
 import copy
 import numpy as np
 import pickle
+import mesa
 
 from .cell import Cell
-from .follower import FollowerAgent
 from .leader import LeaderAgent, VirtualLeader
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 from .goal import GateGoal, AreaGoal
 from .utils.constants import MAP_SYMBOLS, OBSTACLE, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED, EXIT_GOAL_SYMBOL,\
     AREA_GOAL_SYMBOL, ORIENTATION, GATE, EMPTY
-from .utils.room import compute_static_field, normalize_grid
+from .utils.room import compute_static_field
+from .utils.portrayal import agent_portrayal
 
 
 class FileLoader:
@@ -55,6 +56,27 @@ class FileLoader:
 
     def get_leader(self):
         return self.leader, self.virtual_leader
+
+    def get_goals(self, model):
+        goals_list = []
+        for g in self.goals:
+            goal_symbol = g[0]
+            if goal_symbol == EXIT_GOAL_SYMBOL:
+                lt = g[1]
+                target = g[2]
+                goals_list.append(GateGoal(model, *lt, target))
+            if goal_symbol == AREA_GOAL_SYMBOL:
+                lt = g[1][0]
+                rb = g[1][1]
+                target = g[2]
+                goals_list.append(AreaGoal(model, [lt, rb], target))
+        return goals_list
+
+    def get_canvas(self):
+        CELL_SIZE = 30
+        canvas_width = CELL_SIZE*self.width
+        canvas_height = CELL_SIZE*self.height
+        return mesa.visualization.CanvasGrid(agent_portrayal, self.width, self.height, canvas_width, canvas_height)
 
     def load_topology(self):
         if self.filename is None:
@@ -102,21 +124,6 @@ class FileLoader:
                 if goal_symbol == AREA_GOAL_SYMBOL:
                     area_goal = [AREA_GOAL_SYMBOL, [lt, rb], target]
                     self.goals.append(area_goal)
-
-    def get_goals(self, model):
-        goals_list = []
-        for g in self.goals:
-            goal_symbol = g[0]
-            if goal_symbol == EXIT_GOAL_SYMBOL:
-                lt = g[1]
-                target = g[2]
-                goals_list.append(GateGoal(model, *lt, target))
-            if goal_symbol == AREA_GOAL_SYMBOL:
-                lt = g[1][0]
-                rb = g[1][1]
-                target = g[2]
-                goals_list.append(AreaGoal(model, [lt, rb], target))
-        return goals_list
 
     def place_agents(self, model):
         agent_positions = {LEADER: [],

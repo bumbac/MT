@@ -75,8 +75,9 @@ class RoomModel(mesa.Model):
             leader.add_partner(partner)
 
     def replace_agent(self, agent):
-        self.grid.remove_agent(agent)
-        self.schedule.remove_agent(agent)
+        if agent:
+            self.grid.remove_agent(agent)
+            self.schedule.remove_agent(agent)
 
     def step(self):
         print("-----------")

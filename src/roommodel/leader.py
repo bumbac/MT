@@ -2,7 +2,7 @@ import numpy as np
 import mesa
 
 from .utils.portrayal import create_color
-from .utils.constants import KO
+from .utils.constants import KS, KO, OCCUPIED_CELL
 from .agent import Agent
 from .directed import DirectedAgent
 
@@ -14,19 +14,34 @@ class LeaderAgent(Agent):
         self.name = "Leader: " + str(self.unique_id)
         # leader tries to go around
         self.k[KO] = 0.1
+        self.k[KS] = 5
+
 
     def step(self):
         self.reset()
+        distance, pos = self.middle_crowd()
         distance, pos = self.most_distant()
+        print(pos)
         sff = self.model.sff_compute([pos, pos])
         return self.select_cell(sff)
 
-    def most_distant(self):
+    def middle_crowd(self):
         distances = []
         for uid in self.model.schedule._agents:
             agent = self.model.schedule._agents[uid]
             d = self.dist(self.pos, agent.pos)
             distances.append((d, agent.pos))
+        distances = sorted(distances, key=lambda x: x[0], reverse=True)
+        return distances[0]
+
+    def most_distant(self):
+        distances = [(0, self.pos)]
+        occupancy_grid = self.model.of
+        sff = self.model.sff["Leader"]
+        for x, y in np.argwhere(occupancy_grid == OCCUPIED_CELL):
+            if (y, x) == self.pos:
+                continue
+            distances.append((sff[x, y], [y, x]))
         distances = sorted(distances, key=lambda x: x[0], reverse=True)
         return distances[0]
 
@@ -57,15 +72,15 @@ class LeaderDirectedAgent(DirectedAgent):
         self.name = "Leader directed: " + str(self.unique_id)
         self.color = create_color(self)
 
-    def step(self) -> None:
-        self.reset()
-        sff = self.model.sff["Leader"]
-        self.select_cell(sff)
-
-    def move(self):
-        if self.next_cell:
-            cell = self.next_cell
-        else:
-            return None
-        self.model.sff_update([cell.pos, cell.pos], "Follower")
-        return super().move(cell)
+    # def step(self) -> None:
+    #     self.reset()
+    #     sff = self.model.sff["Leader"]
+    #     self.select_cell(sff)
+    #
+    # def move(self):
+    #     if self.next_cell:
+    #         cell = self.next_cell
+    #     else:
+    #         return None
+    #     self.model.sff_update([cell.pos, cell.pos], "Follower")
+    #     return super().move(cell)
