@@ -11,8 +11,6 @@ class DirectedPartnerAgent(DirectedAgent):
         super().__init__(uid, model)
         self.name = "Follower Pair: " + self.name
         self.leader = True
-        self.k[KO] = 0
-        self.k[KS] = 10
 
     def step(self):
         self.leader = self.update_leader()
@@ -47,7 +45,7 @@ class DirectedPartnerAgent(DirectedAgent):
             penalization = 1
             if self.cross_obstacle(leader[0]) \
                     or self.partner.cross_obstacle(partner[0]):
-                penalization = 0
+                penalization = self.penalization_cross_obstacle
             if leader_attraction[coords] == 0 or partner_attraction[p_coords] == 0:
                 attraction[(leader, partner)] = 0
             else:
@@ -68,10 +66,11 @@ class DirectedPartnerAgent(DirectedAgent):
             else:
                 distance_to_leader = min(self.dist(self.pos, self.model.leader.pos),
                                          self.partner.dist(self.partner.pos, self.model.leader.pos))
-                penalization[key] = 1/distance_to_leader
+                if distance_to_leader > 0:
+                    penalization[key] = (1/distance_to_leader)**2
         for key in penalization:
             if attraction[key] > 0:
-                attraction[key] = attraction[key]*penalization[key]
+                attraction[key] = attraction[key] * penalization[key]
         normalize = sum(attraction.values())
         for key in attraction:
             attraction[key] /= normalize

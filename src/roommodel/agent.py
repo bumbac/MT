@@ -50,6 +50,7 @@ class Agent(mesa.Agent):
         if self.next_cell is not None:
             if self.next_cell.winner == self:
                 self.confirm_move = True
+                self.adapt_speed()
             else:
                 self.bubbledown()
         else:
@@ -208,3 +209,11 @@ class Agent(mesa.Agent):
         # special maneuvers have double duration as normal
         if distance == 3:
             return 2 * self.movement_duration
+
+    def adapt_speed(self):
+        d = self.dist(self.pos, self.model.leader.pos)
+        if self.next_cell is not None and d > 0:
+            if self.next_cell.agent is not None:
+                self.movement_duration = 3
+            else:
+                self.movement_duration = round(self.movement_duration * 1/d)
