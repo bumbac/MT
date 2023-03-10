@@ -20,8 +20,14 @@ class SequentialActivation(mesa.time.BaseScheduler):
         self.epochs += 1
         self._cells = {}
         self.removed_agents = {}
-        # select next_cell
+        running_agents = {}
+        print("-----", self.time, "-----")
         for agent in self._agents.values():
+            if agent.allow_entrance():
+                running_agents[agent.unique_id] = agent
+
+        # select next_cell
+        for agent in running_agents.values():
             agent.step()
         # select winner
         for cell in self._cells.values():
@@ -34,7 +40,7 @@ class SequentialActivation(mesa.time.BaseScheduler):
             cell.advance()
 
         self.steps += 1
-        self.time += 1
+        self.time += 2
 
     def add_cell(self, cell: Cell):
         self._cells[cell.unique_id] = cell

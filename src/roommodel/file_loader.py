@@ -9,9 +9,9 @@ from .cell import Cell
 from .leader import LeaderAgent, VirtualLeader
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
-from .goal import GateGoal, AreaGoal
+from .goal import GateGoal, AreaGoal, LocationGoal
 from .utils.constants import MAP_SYMBOLS, OBSTACLE, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED, EXIT_GOAL_SYMBOL,\
-    AREA_GOAL_SYMBOL, ORIENTATION, GATE, EMPTY
+    AREA_GOAL_SYMBOL, LOCATION_GOAL_SYMBOL, ORIENTATION, GATE, EMPTY
 from .utils.room import compute_static_field
 from .utils.portrayal import agent_portrayal
 
@@ -70,9 +70,14 @@ class FileLoader:
                 rb = g[1][1]
                 target = g[2]
                 goals_list.append(AreaGoal(model, [lt, rb], target))
+            if goal_symbol == LOCATION_GOAL_SYMBOL:
+                lt = g[1]
+                target = g[3]
+                wait_time = g[2]
+                goals_list.append(LocationGoal(model, *lt, wait_time, target))
         return goals_list
 
-    def get_canvas(self):
+    def get_canvas(self, resolution):
         CELL_SIZE = 30
         canvas_width = CELL_SIZE*self.width
         canvas_height = CELL_SIZE*self.height
@@ -114,16 +119,18 @@ class FileLoader:
                 goal_symbol = tokens[0]
                 target = tokens[-1]
                 lt = (int(tokens[1]), int(tokens[2]))
-                rb = lt
-                if len(tokens) > 4:
-                    rb = (int(tokens[3]), int(tokens[4]))
                 if goal_symbol == EXIT_GOAL_SYMBOL:
                     gate_goal = [EXIT_GOAL_SYMBOL, [lt], target]
                     self.gate = lt
                     self.goals.append(gate_goal)
                 if goal_symbol == AREA_GOAL_SYMBOL:
+                    rb = (int(tokens[3]), int(tokens[4]))
                     area_goal = [AREA_GOAL_SYMBOL, [lt, rb], target]
                     self.goals.append(area_goal)
+                if goal_symbol == LOCATION_GOAL_SYMBOL:
+                    wait_time = tokens[3]
+                    location_goal = [LOCATION_GOAL_SYMBOL, [lt], wait_time, target]
+                    self.goals.append(location_goal)
 
     def place_agents(self, model):
         agent_positions = {LEADER: [],

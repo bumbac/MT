@@ -16,10 +16,11 @@ class Agent(mesa.Agent):
         self.next_cell = None
         self.confirm_move = False
         self.moved = False
-        self.finished_move = False
         self.partner = None
+        self.tau = 0
+        self.movement_duration = 3
         self.k = {KS: 5,
-                  KO: 0.5,
+                  KO: 0.0,
                   KD: 0,
                   GAMMA: 0.1}
 
@@ -34,7 +35,6 @@ class Agent(mesa.Agent):
         self.tail = None
         self.confirm_move = False
         self.next_cell = None
-        self.finished_move = False
         self.moved = False
 
     def select_cell(self, sff):
@@ -72,6 +72,7 @@ class Agent(mesa.Agent):
 
     def move(self):
         cell = self.next_cell
+        self.tau += self.movement_cost()
         self.model.grid.move_agent(self, cell.pos)
         self.model.of[cell.pos[1], cell.pos[0]] = OCCUPIED_CELL
         # prev cell
@@ -88,7 +89,6 @@ class Agent(mesa.Agent):
             self.tail.move()
             self.tail = None
         self.cell.evacuate()
-        self.finished_move = True
         return prev_cell
 
     def attraction(self, sff, cells):
@@ -186,3 +186,25 @@ class Agent(mesa.Agent):
     def leader_los(self):
         leader = self.model.leader
         return self.dist(self.pos, leader.pos)
+
+    def allow_entrance(self):
+        if self.tau <= self.model.schedule.time:
+            if self.partner is not None:
+                if self.partner.tau > self.model.schedule.time:
+                    return False
+            return True
+        else:
+            return False
+
+    def movement_cost(self):
+        distance = 0
+        if self.next_cell:
+            distance = self.dist(self.pos, self.next_cell.pos)
+        if distance == 0:
+            return 0
+        # diagonal movements have same value as normal values
+        if distance < 3:
+            return self.movement_duration
+        # special maneuvers have double duration as normal
+        if distance == 3:
+            return 2 * self.movement_duration
