@@ -44,6 +44,10 @@ class Cell(Agent):
                     head.move()
 
     def update_color(self, value):
+        """Updates the color to present SFF value.
+        Args:
+            value: float, SFF value
+        """
         color = [0, 0, 0]
         if 0 <= value <= 1:
             color = [0, 255, int(255*value)]
