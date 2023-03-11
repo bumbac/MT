@@ -2,7 +2,7 @@ import mesa
 import numpy as np
 
 from .directed import DirectedAgent
-from .utils.constants import ORIENTATION, MANEUVERS, KO
+from .utils.constants import ORIENTATION, MANEUVERS, KO, KS
 from .utils.portrayal import create_color
 
 
@@ -11,7 +11,6 @@ class DirectedPartnerAgent(DirectedAgent):
         super().__init__(uid, model)
         self.name = "Follower Pair: " + self.name
         self.leader = True
-        self.k[KO] = 0.1
 
     def step(self):
         self.leader = self.update_leader()
@@ -25,28 +24,63 @@ class DirectedPartnerAgent(DirectedAgent):
         sff = self.model.sff["Follower"]
         return self.select_cell(sff)
 
-    def select_cell(self, sff):
-        if not self.partner:
-            return super().select_cell(sff)
+    def attraction(self, sff, cells):
+        if self.partner is None:
+            return super().attraction(sff, cells)
         maneuvers = self.offset_maneuvers()
-        cells = [[], []]
         for leader, partner in maneuvers:
             cells[0].append(leader[0])
             cells[1].append(partner[0])
-        leader_attraction = self.attraction(sff, cells[0])
-        partner_attraction = self.partner.attraction(sff, cells[1])
+        # discipline is already included
+        leader_attraction = super(DirectedPartnerAgent, self).attraction(sff, cells[0])
+        partner_attraction = super(DirectedPartnerAgent, self.partner).attraction(sff, cells[1])
         attraction = {}
         for leader, partner in maneuvers:
             coords, _ = leader
             p_coords, _ = partner
+            if coords in cells[0] and p_coords in cells[1]:
+                pass
+            else:
+                continue
+            penalization = 1
+            if self.cross_obstacle(leader[0]) \
+                    or self.partner.cross_obstacle(partner[0]):
+                penalization = self.penalization_cross_obstacle
             if leader_attraction[coords] == 0 or partner_attraction[p_coords] == 0:
                 attraction[(leader, partner)] = 0
             else:
-                attraction[(leader, partner)] = leader_attraction[coords] + partner_attraction[p_coords]
+                attraction[(leader, partner)] = penalization * (leader_attraction[coords] + partner_attraction[p_coords])
 
+        top_maneuver = (float("-inf"), None)
+
+        for key in attraction:
+            if attraction[key] > top_maneuver[0]:
+                top_maneuver = (attraction[key], key)
+        top_value, top_key = top_maneuver
+        top_orientation = top_key[0][1]
+        penalization = {}
+        for key in attraction:
+            _, next_orientation = key[0]
+            if next_orientation == top_orientation:
+                penalization[key] = 1
+            else:
+                distance_to_leader = min(self.dist(self.pos, self.model.leader.pos),
+                                         self.partner.dist(self.partner.pos, self.model.leader.pos))
+                if distance_to_leader > 0:
+                    penalization[key] = (1/distance_to_leader)**2
+        for key in penalization:
+            if attraction[key] > 0:
+                attraction[key] = attraction[key] * penalization[key]
         normalize = sum(attraction.values())
         for key in attraction:
             attraction[key] /= normalize
+        return attraction
+
+    def select_cell(self, sff):
+        if not self.partner:
+            return super().select_cell(sff)
+        cells = [[], []]
+        attraction = self.attraction(sff, cells)
         leader, partner = self.stochastic_choice(attraction)
         coords, orientation = leader
         p_coords, p_orientation = partner

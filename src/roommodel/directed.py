@@ -2,7 +2,7 @@ import mesa
 import numpy as np
 
 from .agent import Agent
-from .utils.constants import ORIENTATION
+from .utils.constants import ORIENTATION, KO, KS
 
 
 class DirectedAgent(Agent):
@@ -11,6 +11,9 @@ class DirectedAgent(Agent):
         self.name = "Follower " + self.name
         self.orientation = ORIENTATION.NORTH
         self.next_orientation = ORIENTATION.NORTH
+        self.k[KO] = 0
+        self.k[KS] = 5
+        self.penalization_cross_obstacle = 0.5
 
     def __repr__(self):
         return self.name + " " + str(self.pos) + " " + str(self.orientation)

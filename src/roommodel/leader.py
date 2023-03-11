@@ -1,10 +1,14 @@
-import numpy as np
 import mesa
+import numpy as np
 
 from .utils.portrayal import create_color
 from .utils.constants import KS, KO, OCCUPIED_CELL
 from .agent import Agent
-from .directed import DirectedAgent
+
+import matplotlib
+
+matplotlib.use('tkagg')
+import matplotlib.pyplot as plt
 
 
 class LeaderAgent(Agent):
@@ -12,15 +16,18 @@ class LeaderAgent(Agent):
         super().__init__(uid, model)
         self.color = create_color(self)
         self.name = "Leader: " + str(self.unique_id)
+        self.movement_duration = 1
         # leader tries to go around
-        self.k[KO] = 1
+        self.k[KO] = 0.1
         self.k[KS] = 5
 
     def step(self):
         self.reset()
-        distance, pos = self.middle_crowd()
         distance, pos = self.most_distant()
-        sff = self.model.sff_compute([pos, pos])
+        if distance == 0:
+            sff = self.model.sff["Leader"]
+        else:
+            sff = self.model.sff_compute([pos, pos])
         return self.select_cell(sff)
 
     def middle_crowd(self):
@@ -40,7 +47,7 @@ class LeaderAgent(Agent):
             if (y, x) == self.pos:
                 continue
             distances.append((sff[x, y], [y, x]))
-        distances = sorted(distances, key=lambda x: x[0], reverse=True)
+        distances = sorted(distances, key=lambda dist_pos: dist_pos[0], reverse=True)
         return distances[0]
 
 
@@ -49,10 +56,25 @@ class VirtualLeader(LeaderAgent):
         super().__init__(uid, model)
         self.color = "w"
         self.name = "Virtual " + self.name
-        self.k[KO] = 1
+        self.k[KO] = 0
+        self.k[KS] = 10
+        self.data = None
+
+    def distance_heatmap(self):
+        occupancy_grid = self.model.of
+        height, width = occupancy_grid.shape
+        if self.data is None:
+            self.data = np.zeros(shape=(height, width))
+        for y, x in np.argwhere(occupancy_grid == OCCUPIED_CELL):
+            self.data[height - y, x] += 1
+        if self.model.schedule.epochs % 16 == 0:
+            plt.imshow(self.data)
+            plt.show(block=False)
+            plt.pause(0.1)
 
     def step(self):
         self.reset()
+        self.distance_heatmap()
         cells = self.model.grid.get_neighborhood(self.pos, include_center=True, moore=True)
         sff = self.model.sff["Leader"]
         attraction = self.attraction(sff, cells)
@@ -62,23 +84,3 @@ class VirtualLeader(LeaderAgent):
 
     def advance(self):
         self.model.sff_update([self.pos, self.pos], "Follower")
-
-
-class LeaderDirectedAgent(DirectedAgent):
-    def __init__(self, uid, model):
-        super().__init__(uid, model)
-        self.name = "Leader directed: " + str(self.unique_id)
-        self.color = create_color(self)
-
-    # def step(self) -> None:
-    #     self.reset()
-    #     sff = self.model.sff["Leader"]
-    #     self.select_cell(sff)
-    #
-    # def move(self):
-    #     if self.next_cell:
-    #         cell = self.next_cell
-    #     else:
-    #         return None
-    #     self.model.sff_update([cell.pos, cell.pos], "Follower")
-    #     return super().move(cell)

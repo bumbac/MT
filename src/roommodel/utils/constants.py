@@ -62,6 +62,7 @@ PAIR_DIRECTED = "P"
 
 EXIT_GOAL_SYMBOL = "E"
 AREA_GOAL_SYMBOL = "A"
+LOCATION_GOAL_SYMBOL = "L"
 
 MAP_SYMBOLS = {str(i): i for i in range(MAX_GROUPS)}
 MAP_SYMBOLS[GATE] = 100
@@ -229,11 +230,14 @@ def combine(orientation):
     leader_partner = list(
         filter(lambda lp: lp[LEADER_IDX][ORIENTATION_VALUE] == lp[PARTNER_IDX][ORIENTATION_VALUE], leader_partner))
 
+    leader_partner_cost = []
     for combination in leader_partner:
         together, lc, pc = movement_cost(combination, orientation)
-        # if lc == 3 or pc == 3:
-        #     print(combination, together, lc, pc)
-    return leader_partner
+        leader_position, partner_position = combination
+        new_combination = (leader_position, partner_position, (together, lc, pc))
+        leader_partner_cost.append(new_combination)
+    # return leader_partner
+    return leader_partner_cost
 
 
 def maneuvers():
