@@ -36,6 +36,7 @@ class Agent(mesa.Agent):
         self.partner = None
         self.tau = 0
         self.movement_duration = 3
+        self.penalization_cross_obstacle = 0.5
         self.k = {KS: 5,
                   KO: 0.0,
                   KD: 0,
@@ -44,12 +45,15 @@ class Agent(mesa.Agent):
     def __repr__(self):
         return self.name + " " + str(self.pos)
 
-    def update_color(self, value):
-        """ Assign HTML Hex color code for agent.
+    def dist(self, start, goal):
+        """Manhattan distance from start to goal.
+
         Args:
-            value: Mostly float or other type which affects e.g. the hue of color.
+            start Tuple[int,int]: xy coordinates of start position.
+            goal Tuple[int,int]: xy coordinates of goal position.
+
         """
-        self.color = create_color(self)
+        return np.abs(start[0] - goal[0]) + np.abs(start[1] - goal[1])
 
     def reset(self):
         """Reset state variables of the agent."""
@@ -61,9 +65,12 @@ class Agent(mesa.Agent):
 
     def select_cell(self, sff):
         """Stochastically select cell to enter in the next step based on SFF.
+
         Agent enters the competition for the cell.
+
         Args:
-            sff: numpy array with SFF values
+            sff np.array(height, width):  Array of float static field values.
+
         """
         cells = self.model.grid.get_neighborhood(self.pos, moore=True, include_center=True)
         attraction = self.attraction(sff, cells)
@@ -73,69 +80,11 @@ class Agent(mesa.Agent):
         cell.enter(self)
         return cell
 
-    def advance(self):
-        """Test if agent will move to next cell in the next step and update states.
-        If agent cant move, he propagates to bounded agents behind that he will not
-        move from his cell.
-        Agent adapts speed based on surroundings
-        """
-        if self.next_cell is not None:
-            if self.next_cell.winner == self:
-                self.confirm_move = True
-                self.adapt_speed()
-            else:
-                self.bubbledown()
-        else:
-            self.bubbledown()
-
-    def bubbledown(self):
-        """Reset states because of unsuccessful move in the next step.
-        Propagate the same to bounded agents behind.
-        """
-        if self.next_cell is not None:
-            if self.next_cell.winner == self:
-                self.next_cell.winner = None
-            self.next_cell = None
-        self.confirm_move = None
-        if self.partner is not None:
-            if self.partner.next_cell is not None:
-                self.partner.bubbledown()
-        if self.head:
-            self.head.tail = None
-            self.head = None
-        if self.tail is not None:
-            self.tail.bubbledown()
-
-    def move(self):
-        """Move agent to next cell and updates states, move bounded agents behind.
-
-        Agent updates timestep with duration of the move.
-        """
-        cell = self.next_cell
-        self.tau += self.movement_cost()
-        self.model.grid.move_agent(self, cell.pos)
-        self.model.of[cell.pos[1], cell.pos[0]] = OCCUPIED_CELL
-        # prev cell
-        prev_cell = self.cell
-        self.cell.leave()
-        self.model.of[self.cell.pos[1], self.cell.pos[0]] = EMPTY_CELL
-        # current cell
-        self.cell = cell
-        self.next_cell = None
-        self.cell.agent = self
-        self.cell.winner = None
-        if self.tail is not None:
-            self.tail.head = None
-            self.tail.move()
-            self.tail = None
-        self.cell.evacuate()
-        return prev_cell
-
     def attraction(self, sff, cells):
         """Calculate attraction of each position in cells based on sff etc.
 
         Args:
-            sff np.array(height, width):  of static field values.
+            sff (object):  np.array(height, width) of float static field values.
             cells (list): xy coordinates for next moves.
 
         Returns:
@@ -209,6 +158,120 @@ class Agent(mesa.Agent):
         idx = np.random.choice(len(coords), p=probabilities)
         return coords[idx]
 
+    def advance(self):
+        """Test if agent will move to next cell in the next step and update states.
+
+        If agent cant move, he propagates to bounded agents behind that he will not
+        move from his cell.
+        Agent adapts speed based on surroundings
+
+        """
+        if self.next_cell is not None:
+            if self.next_cell.winner == self:
+                self.confirm_move = True
+                self.adapt_speed()
+            else:
+                self.bubbledown()
+        else:
+            self.bubbledown()
+
+    def bubbledown(self):
+        """Reset states because of unsuccessful move in the next step.
+
+        Propagate the same to bounded agents behind.
+
+        """
+        if self.next_cell is not None:
+            if self.next_cell.winner == self:
+                self.next_cell.winner = None
+            self.next_cell = None
+        self.confirm_move = None
+        if self.partner is not None:
+            if self.partner.next_cell is not None:
+                self.partner.bubbledown()
+        if self.head:
+            self.head.tail = None
+            self.head = None
+        if self.tail is not None:
+            self.tail.bubbledown()
+
+    def move(self):
+        """Move agent to next cell and updates states, move bounded agents behind.
+
+        Agent updates timestep with duration of the move.
+
+        """
+        cell = self.next_cell
+        self.tau += self.movement_cost()
+        self.model.grid.move_agent(self, cell.pos)
+        self.model.of[cell.pos[1], cell.pos[0]] = OCCUPIED_CELL
+        # prev cell
+        prev_cell = self.cell
+        self.cell.leave()
+        self.model.of[self.cell.pos[1], self.cell.pos[0]] = EMPTY_CELL
+        # current cell
+        self.cell = cell
+        self.next_cell = None
+        self.cell.agent = self
+        self.cell.winner = None
+        if self.tail is not None:
+            self.tail.head = None
+            self.tail.move()
+            self.tail = None
+        # evacuation is in the moment of entrance so it is different from self.cell.leave()
+        self.cell.evacuate()
+        return prev_cell
+
+    def movement_cost(self):
+        """Duration or cost of the movement in timesteps.
+
+        Returns:
+            int: Duration in timesteps.
+
+        """
+        distance = 0
+        if self.next_cell:
+            distance = self.dist(self.pos, self.next_cell.pos)
+        if distance == 0:
+            return 0
+        # diagonal movements have same value as normal values
+        if distance < 3:
+            return self.movement_duration
+        # special maneuvers have double duration as normal
+        if distance == 3:
+            return 2 * self.movement_duration
+
+    def adapt_speed(self):
+        """Based on the surroundings and state (de)accelerate agent.
+
+        Agents with empty cell in front and close to the leader
+        increase speed.
+
+        """
+        d = self.dist(self.pos, self.model.leader.pos)
+        if self.next_cell is not None and d > 0:
+            self.movement_duration = 3
+            if self.next_cell.agent is None:
+                self.movement_duration = round(self.movement_duration - self.movement_duration * 1/d)
+
+    def allow_entrance(self):
+        """Indicator of agent allowed to move in timestep.
+
+        Schedule runs in 2 ticks per update. Agents with tau lower
+        than timestep are allowed to move.
+
+        Returns:
+            bool: Agent can move in the next timestep.
+
+        """
+        if self.tau <= self.model.schedule.time:
+            if self.partner is not None:
+                if self.partner.tau > self.model.schedule.time:
+                    return False
+            return True
+        else:
+            return False
+
     def cross_obstacle(self, pos):
         """Indicator of crossing obstacle.
 
@@ -216,7 +279,7 @@ class Agent(mesa.Agent):
             pos (int,int): xy coordinates of position to check.
 
         Returns:
-            bool: agent crosses obstacle.
+            bool: Agent crosses obstacle.
 
         """
         # non diagonal movement
@@ -239,60 +302,25 @@ class Agent(mesa.Agent):
         return False
 
     def is_diagonal(self, pos, agent_pos=None):
-        """Indicator of diagonal movement. Can be further than in neighbourhood."""
+        """Indicator of diagonal movement. Can be outside Moore neighbourhood.
+
+        Args:
+            pos (int,int): xy coordinates of position to check.
+            agent_pos (int,int): xy coordinates of starting position. If none, self.pos is used.
+
+        Returns:
+              bool: Movement to pos is diagonal.
+
+        """
         if agent_pos is None:
             agent_pos = self.pos
         return (agent_pos[0] != pos[0]) and (agent_pos[1] != pos[1])
 
-    def dist(self, start, goal):
-        """Manhattan distance from start to goal."""
-        return np.abs(start[0] - goal[0]) + np.abs(start[1] - goal[1])
+    def update_color(self, value):
+        """ Assign HTML Hex color code for agent.
 
-    def allow_entrance(self):
-        """Indicator of agent allowed to move in timestep.
-
-        Schedule runs in 2 ticks per update. Agents with tau lower
-        than timestep are allowed to move.
-        Returns:
-            bool: Agent can move in the next timestep.
+        Args:
+            value (Float): Float or other type which affects color e.g. the SFF of cell.
 
         """
-        if self.tau <= self.model.schedule.time:
-            if self.partner is not None:
-                if self.partner.tau > self.model.schedule.time:
-                    return False
-            return True
-        else:
-            return False
-
-    def movement_cost(self):
-        """Duration or cost of the movement in timesteps.
-
-        Returns:
-            int: Duration in timesteps.
-        """
-        distance = 0
-        if self.next_cell:
-            distance = self.dist(self.pos, self.next_cell.pos)
-        if distance == 0:
-            return 0
-        # diagonal movements have same value as normal values
-        if distance < 3:
-            return self.movement_duration
-        # special maneuvers have double duration as normal
-        if distance == 3:
-            return 2 * self.movement_duration
-
-    def adapt_speed(self):
-        """Based on the surroundings and state (de)accelerate agent.
-
-        Agents further from the leader increase speed.
-        Agents with empty cell in front increase speed.
-
-        """
-        d = self.dist(self.pos, self.model.leader.pos)
-        if self.next_cell is not None and d > 0:
-            if self.next_cell.agent is not None:
-                self.movement_duration = 3
-            else:
-                self.movement_duration = round(self.movement_duration * 1/d)
+        self.color = create_color(self)

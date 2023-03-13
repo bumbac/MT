@@ -12,6 +12,11 @@ import matplotlib.pyplot as plt
 
 
 class LeaderAgent(Agent):
+    """Physical solitary leader agent with no orientation. Influences agents in neighbourhood.
+
+    Does not update SFF.
+
+    """
     def __init__(self, uid, model):
         super().__init__(uid, model)
         self.color = create_color(self)
@@ -22,24 +27,37 @@ class LeaderAgent(Agent):
         self.k[KS] = 5
 
     def step(self):
+        """Stochastically selects next step based on SFF of current goal."""
         self.reset()
         distance, pos = self.most_distant()
         if distance == 0:
             sff = self.model.sff["Leader"]
         else:
             sff = self.model.sff_compute([pos, pos])
-        return self.select_cell(sff)
+        self.select_cell(sff)
 
     def middle_crowd(self):
+        """Position of the middle of the crowd between Virtual leader and most distant agent from him.
+
+        Returns:
+            (int, (int, int)): Manhattan distance and xy coordinates of the middle of the crowd.
+
+        """
         distances = []
-        for uid in self.model.schedule._agents:
-            agent = self.model.schedule._agents[uid]
+        for agent in self.model.schedule.agents:
             d = self.dist(self.pos, agent.pos)
             distances.append((d, agent.pos))
         distances = sorted(distances, key=lambda x: x[0], reverse=True)
-        return distances[0]
+        median = len(distances) // 2
+        return distances[median]
 
     def most_distant(self):
+        """Position of the most distant agent from Virtual leader.
+
+        Returns:
+            (int, (int, int)): Manhattan distance and xy coordinates of most distant agent.
+
+        """
         distances = [(0, self.pos)]
         occupancy_grid = self.model.of
         sff = self.model.sff["Leader"]
@@ -52,6 +70,11 @@ class LeaderAgent(Agent):
 
 
 class VirtualLeader(LeaderAgent):
+    """Virtual solitary leader agent with no orientation. Sets the SFF for other agents.
+
+    Updates SFF.
+
+    """
     def __init__(self, uid, model):
         super().__init__(uid, model)
         self.color = "w"
@@ -67,12 +90,17 @@ class VirtualLeader(LeaderAgent):
             self.data = np.zeros(shape=(height, width))
         for y, x in np.argwhere(occupancy_grid == OCCUPIED_CELL):
             self.data[height - y, x] += 1
-        if self.model.schedule.epochs % 16 == 0:
+        if self.model.schedule.steps % 16 == 0:
             plt.imshow(self.data)
             plt.show(block=False)
             plt.pause(0.1)
 
     def step(self):
+        """Stochastically selects next cell based on SFF of current goal.
+
+        Does not physically move on the grid, is not visible and does not occupy any cell.
+
+        """
         self.reset()
         self.distance_heatmap()
         cells = self.model.grid.get_neighborhood(self.pos, include_center=True, moore=True)
@@ -83,4 +111,5 @@ class VirtualLeader(LeaderAgent):
         self.pos = cell.pos
 
     def advance(self):
+        """Updates SFF with his position as goal."""
         self.model.sff_update([self.pos, self.pos], "Follower")
