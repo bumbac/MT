@@ -19,6 +19,7 @@ def create_color(agent, hex=True):
     if agent.name.startswith("Follower"):
         color = [0, 0, 255]
     if agent.name.startswith("Follower Pair"):
+        # paired agents have same color
         hash_value = hash(agent.name)
         r = hash_value % 256
         g = hash_value % 64
@@ -66,7 +67,6 @@ def agent_portrayal(agent):
             "text_color": "black"
         }
         return portrayal
-
 
     if agent.name.startswith("Follower"):
         portrayal = {

@@ -7,12 +7,19 @@ from .utils.portrayal import create_color
 
 
 class DirectedPartnerAgent(DirectedAgent):
+    """Paired agent with orientation. Can be solitary when partner evacuates.
+
+    Attributes:
+        leader (bool): Indicator of agent being in charge of all processes.
+    """
     def __init__(self, uid, model):
         super().__init__(uid, model)
         self.name = "Follower Pair: " + self.name
         self.leader = True
 
     def step(self):
+        """Leader stochastically selects next step for both agents. Updates leadership based on position in pair,
+         partner does nothing."""
         self.leader = self.update_leader()
         if not self.leader:
             return
@@ -22,63 +29,20 @@ class DirectedPartnerAgent(DirectedAgent):
         self.reset()
         self.partner.reset()
         sff = self.model.sff["Follower"]
-        return self.select_cell(sff)
-
-    def attraction(self, sff, cells):
-        if self.partner is None:
-            return super().attraction(sff, cells)
-        maneuvers = self.offset_maneuvers()
-        for leader, partner in maneuvers:
-            cells[0].append(leader[0])
-            cells[1].append(partner[0])
-        # discipline is already included
-        leader_attraction = super(DirectedPartnerAgent, self).attraction(sff, cells[0])
-        partner_attraction = super(DirectedPartnerAgent, self.partner).attraction(sff, cells[1])
-        attraction = {}
-        for leader, partner in maneuvers:
-            coords, _ = leader
-            p_coords, _ = partner
-            if coords in cells[0] and p_coords in cells[1]:
-                pass
-            else:
-                continue
-            penalization = 1
-            if self.cross_obstacle(leader[0]) \
-                    or self.partner.cross_obstacle(partner[0]):
-                penalization = self.penalization_cross_obstacle
-            if leader_attraction[coords] == 0 or partner_attraction[p_coords] == 0:
-                attraction[(leader, partner)] = 0
-            else:
-                attraction[(leader, partner)] = penalization * (leader_attraction[coords] + partner_attraction[p_coords])
-
-        top_maneuver = (float("-inf"), None)
-
-        for key in attraction:
-            if attraction[key] > top_maneuver[0]:
-                top_maneuver = (attraction[key], key)
-        top_value, top_key = top_maneuver
-        top_orientation = top_key[0][1]
-        penalization = {}
-        for key in attraction:
-            _, next_orientation = key[0]
-            if next_orientation == top_orientation:
-                penalization[key] = 1
-            else:
-                distance_to_leader = min(self.dist(self.pos, self.model.leader.pos),
-                                         self.partner.dist(self.partner.pos, self.model.leader.pos))
-                if distance_to_leader > 0:
-                    penalization[key] = (1/distance_to_leader)**2
-        for key in penalization:
-            if attraction[key] > 0:
-                attraction[key] = attraction[key] * penalization[key]
-        normalize = sum(attraction.values())
-        for key in attraction:
-            attraction[key] /= normalize
-        return attraction
+        self.select_cell(sff)
 
     def select_cell(self, sff):
+        """Stochastically select maneuver for both agents in pair to execute.
+
+        Solitary agent selects cell using DirectedAgent method.
+
+        Args:
+            sff np.array(height, width):  Array of float static field values.
+
+        """
         if not self.partner:
             return super().select_cell(sff)
+        # cells are empty because attraction method inserts positions from maneuvers
         cells = [[], []]
         attraction = self.attraction(sff, cells)
         leader, partner = self.stochastic_choice(attraction)
@@ -94,7 +58,81 @@ class DirectedPartnerAgent(DirectedAgent):
         partner_cell.enter(self.partner)
         return leader_cell, partner_cell
 
+    def attraction(self, sff, cells):
+        """Calculate attraction of each maneuvers with penalisation.
+
+        Solitary agent uses DirectedAgent method.
+
+        Args:
+            sff (object):  np.array(height, width) of float static field values.
+            cells (list): Empty list, positions will be inserted from maneuvers.
+
+        Returns:
+            dict: (leader:((int, int), ORIENTATION), partner)(key) and attraction(value).
+
+        """
+        if self.partner is None:
+            return super().attraction(sff, cells)
+        # Calculate real coordinates from maneuver offset
+        maneuvers = self.offset_maneuvers()
+        for leader, partner in maneuvers:
+            cells[0].append(leader[0])
+            cells[1].append(partner[0])
+        # discipline is already included
+        leader_attraction = super(DirectedPartnerAgent, self).attraction(sff, cells[0])
+        partner_attraction = super(DirectedPartnerAgent, self.partner).attraction(sff, cells[1])
+        attraction = {}
+        for leader, partner in maneuvers:
+            coords, _ = leader
+            p_coords, _ = partner
+            penalization = 0
+            # cross obstacle penalization
+            if self.cross_obstacle(leader[0]) \
+                    or self.partner.cross_obstacle(partner[0]):
+                penalization = self.penalization_cross_obstacle
+            # if any agent has zero attraction that movement is forbidden
+            if leader_attraction[coords] == 0 or partner_attraction[p_coords] == 0:
+                attraction[(leader, partner)] = 0
+            else:
+                attraction[(leader, partner)] = (1-penalization) * (leader_attraction[coords] + partner_attraction[p_coords])
+
+        # calculating correct orientation in next move
+        top_maneuver = (float("-inf"), None)
+        for key in attraction:
+            if attraction[key] > top_maneuver[0]:
+                top_maneuver = (attraction[key], key)
+        _, top_key = top_maneuver
+        top_orientation = top_key[0][1]
+        # orientation penalisation
+        penalization = {}
+        for key in attraction:
+            _, next_orientation = key[0]
+            if next_orientation == top_orientation:
+                penalization[key] = 1
+            else:
+                distance_to_leader = min(self.dist(self.pos, self.model.leader.pos),
+                                         self.partner.dist(self.partner.pos, self.model.leader.pos))
+                if distance_to_leader > 0:
+                    penalization[key] = (1/distance_to_leader)**2
+        # apply penalization to each maneuver
+        for key in penalization:
+            attraction[key] = attraction[key] * penalization[key]
+        # normalize to make probability
+        normalize = sum(attraction.values())
+        for key in attraction:
+            attraction[key] /= normalize
+        return attraction
+
     def maneuver_out_of_bounds(self, maneuver):
+        """Indicator of maneuver resulting in position outside dimensions of the room.
+
+        Args:
+            maneuver (int, int): xy coordinates of the position.
+
+        Returns:
+            bool: Maneuver is out of dimensions of the room.
+
+        """
         width, height = self.model.dimensions
         x, y = maneuver
         if 0 <= x < width and 0 <= y < height:
@@ -102,6 +140,12 @@ class DirectedPartnerAgent(DirectedAgent):
         return True
 
     def offset_maneuvers(self):
+        """Calculates real coordinates of maneuver from maneuver offset of leader and partner.
+
+        Returns:
+            list: (leader_xy, leader_orientation), (partner_xy, partner_orientation)
+
+        """
         leader_pos = self.pos
         maneuvers = []
         for move in MANEUVERS[self.orientation]:
@@ -118,6 +162,7 @@ class DirectedPartnerAgent(DirectedAgent):
         return maneuvers
 
     def update_leader(self):
+        """Update leadership in the pair based on the positions and orientation."""
         if not self.partner:
             return True
         if self.partner.pos == self.partner_coords():
@@ -129,6 +174,12 @@ class DirectedPartnerAgent(DirectedAgent):
         raise ValueError("Leader error, partner is incompatible.")
 
     def add_partner(self, partner):
+        """Add a partner to form directed agent pair. Updates states, leadership, orientation.
+
+        Args:
+            partner (object): DirectedPartnerAgent to be paired with.
+
+        """
         if self.partner:
             raise ValueError("Partner already assigned.")
         if not partner:
@@ -163,6 +214,7 @@ class DirectedPartnerAgent(DirectedAgent):
         partner.orientation = self.orientation
 
     def remove_partner(self):
+        """Split the pair and update states and leadership. Used in evacuation."""
         if not self.partner:
             raise ValueError("No partner to remove.")
         self.partner = None
@@ -171,6 +223,15 @@ class DirectedPartnerAgent(DirectedAgent):
         self.color = create_color(self)
 
     def partner_coords(self, leader=None):
+        """Calculate position of partner of this agent perspective and orientation as a leader.
+
+        Args:
+            leader (int, int): xy coordinates of the leader.
+
+        Returns:
+            (int, int): xy coordinates of supposed partner.
+
+        """
         coords = None
         if not leader:
             leader = self.pos
