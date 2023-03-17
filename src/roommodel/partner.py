@@ -12,7 +12,7 @@ class DirectedPartnerAgent(DirectedAgent):
     Attributes:
         leader (bool): Indicator of agent being in charge of all processes.
     """
-    def __init__(self, uid, model):
+    def __init__(self, uid, model, ):
         super().__init__(uid, model)
         self.name = "Follower Pair: " + self.name
         self.leader = True
@@ -108,15 +108,15 @@ class DirectedPartnerAgent(DirectedAgent):
         for key in attraction:
             _, next_orientation = key[0]
             if next_orientation == top_orientation:
-                penalization[key] = 1
+                penalization[key] = 0
             else:
                 distance_to_leader = min(self.dist(self.pos, self.model.leader.pos),
                                          self.partner.dist(self.partner.pos, self.model.leader.pos))
                 if distance_to_leader > 0:
-                    penalization[key] = (1/distance_to_leader)**2
+                    penalization[key] = (1 - (1/distance_to_leader)**2) * self.penalization_orientation
         # apply penalization to each maneuver
         for key in penalization:
-            attraction[key] = attraction[key] * penalization[key]
+            attraction[key] = attraction[key] * (1 - penalization[key])
         # normalize to make probability
         normalize = sum(attraction.values())
         for key in attraction:

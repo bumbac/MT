@@ -2,7 +2,7 @@ import mesa
 import numpy as np
 
 from .utils.portrayal import create_color
-from .utils.constants import KS, KO, OCCUPIED_CELL
+from .utils.constants import KS, KO, KD, GAMMA, OCCUPIED_CELL
 from .agent import Agent
 
 import matplotlib
@@ -21,16 +21,13 @@ class LeaderAgent(Agent):
         super().__init__(uid, model)
         self.color = create_color(self)
         self.name = "Leader: " + str(self.unique_id)
-        self.movement_duration = 1
-        # leader tries to go around
-        self.k[KO] = 0.1
-        self.k[KS] = 5
+        self.movement_duration = self.model.leader_movement_duration
 
     def step(self):
         """Stochastically selects next step based on SFF of current goal."""
         self.reset()
         distance, pos = self.most_distant()
-        if distance == 0:
+        if distance == 0 or self.model.leader_front_location_switch:
             sff = self.model.sff["Leader"]
         else:
             sff = self.model.sff_compute([pos, pos])
@@ -79,9 +76,11 @@ class VirtualLeader(LeaderAgent):
         super().__init__(uid, model)
         self.color = "w"
         self.name = "Virtual " + self.name
-        self.k[KO] = 0
-        self.k[KS] = 10
         self.data = None
+        self.k = {KS: 10,
+                  KO: 0,
+                  KD: 0,
+                  GAMMA: 0}
 
     def distance_heatmap(self):
         occupancy_grid = self.model.of
@@ -102,11 +101,11 @@ class VirtualLeader(LeaderAgent):
 
         """
         self.reset()
-        self.distance_heatmap()
+        # self.distance_heatmap()
         cells = self.model.grid.get_neighborhood(self.pos, include_center=True, moore=True)
         sff = self.model.sff["Leader"]
         attraction = self.attraction(sff, cells)
-        coords = self.stochastic_choice(attraction)
+        coords = self.deterministic_choice(attraction)
         cell = self.model.grid[coords[0]][coords[1]][0]
         self.pos = cell.pos
 

@@ -35,15 +35,20 @@ class Agent(mesa.Agent):
         self.moved = False
         self.partner = None
         self.tau = 0
-        self.movement_duration = 3
+        self.nominal_movement_duration = self.model.agent_movement_duration
+        self.movement_duration = self.nominal_movement_duration
+        self.penalization_orientation = self.model.penalization_orientation
         self.penalization_cross_obstacle = 0.5
-        self.k = {KS: 5,
-                  KO: 0.0,
-                  KD: 0,
+        self.k = {KS: self.model.ks,
+                  KO: self.model.ko,
+                  KD: self.model.kd,
                   GAMMA: 0.1}
 
     def __repr__(self):
         return self.name + " " + str(self.pos)
+
+    def debug(self):
+        print(self.unique_id, self.k[KS], "\t", self.k[KO], "MD:", self.movement_duration, "\t", "P:", self.penalization_orientation)
 
     def dist(self, start, goal):
         """Manhattan distance from start to goal.
@@ -57,6 +62,7 @@ class Agent(mesa.Agent):
 
     def reset(self):
         """Reset state variables of the agent."""
+        # self.debug()
         self.head = None
         self.tail = None
         self.confirm_move = False
@@ -142,7 +148,8 @@ class Agent(mesa.Agent):
             attraction_final[pos] = ko * attraction_static_occupancy[pos] + (1 - ko) * attraction_static[pos]
         return attraction_final
 
-    def stochastic_choice(self, attraction):
+    @staticmethod
+    def stochastic_choice(attraction):
         """Pick xy coordinates stochastically based on probability in attraction.
 
         Args:
@@ -157,6 +164,15 @@ class Agent(mesa.Agent):
         probabilities = probabilities / sum(probabilities)
         idx = np.random.choice(len(coords), p=probabilities)
         return coords[idx]
+
+    @staticmethod
+    def deterministic_choice(attraction):
+        coords = list(attraction.keys())
+        probs = list(attraction.values())
+        choices = [(coords[i], probs[i]) for i in range(len(attraction))]
+        choices = sorted(choices, key=lambda x: x[1], reverse=True)
+        top_coords, top_prob = choices[0]
+        return top_coords
 
     def advance(self):
         """Test if agent will move to next cell in the next step and update states.
@@ -237,7 +253,7 @@ class Agent(mesa.Agent):
         # diagonal movements have same value as normal values
         if distance < 3:
             return self.movement_duration
-        # special maneuvers have double duration as normal
+        # special maneuvers have double duration compared to normal
         if distance == 3:
             return 2 * self.movement_duration
 
@@ -248,11 +264,15 @@ class Agent(mesa.Agent):
         increase speed.
 
         """
-        d = self.dist(self.pos, self.model.leader.pos)
+        if self.name.startswith("Leader"):
+            d, _ = self.most_distant()
+            if d > 3:
+                d = 1
+        else:
+            d = self.dist(self.pos, self.model.leader.pos)
         if self.next_cell is not None and d > 0:
-            self.movement_duration = 3
             if self.next_cell.agent is None:
-                self.movement_duration = round(self.movement_duration - self.movement_duration * 1/d)
+                self.movement_duration = round(self.nominal_movement_duration - self.movement_duration * 1/d)
 
     def allow_entrance(self):
         """Indicator of agent allowed to move in timestep.

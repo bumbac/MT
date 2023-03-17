@@ -9,6 +9,7 @@ from .file_loader import FileLoader
 from .utils.room import normalize_grid
 from .utils.constants import AREA_STATIC_BOOSTER, OCCUPIED_CELL, ORIENTATION
 from .utils.algorithms import pair_positions
+from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
 
 
@@ -31,9 +32,19 @@ class RoomModel(mesa.Model):
         on current goals.
 
     """
-    def __init__(self, filename):
+
+    def __init__(self, ks, ko, kd, leader_movement_duration, agent_movement_duration, penalization_orientation,
+                 leader_front_location_switch, filename):
         super().__init__()
         self.file_loader = FileLoader(filename)
+        self.ks = ks
+        self.ko = ko
+        self.kd = kd
+        self.leader_movement_duration = leader_movement_duration
+        self.agent_movement_duration = agent_movement_duration
+        self.penalization_orientation = penalization_orientation
+        self.leader_front_location_switch = leader_front_location_switch
+        self.filename = filename
         self.dimensions = self.file_loader.dimensions()
         self.schedule = SequentialActivation(self)
         self.grid = mesa.space.MultiGrid(*self.dimensions, torus=False)
@@ -95,6 +106,27 @@ class RoomModel(mesa.Model):
                     break
 
             leader.add_partner(partner)
+
+    def split_pairs(self):
+        removed_ids = []
+        for agent in self.schedule.agents:
+            if agent.partner is None:
+                continue
+            if agent.unique_id in removed_ids:
+                continue
+            d = agent.dist(agent.pos, self.gate)
+            if d <= 2:
+                new_agent = DirectedAgent(agent.unique_id, self)
+                new_agent.orientation = agent.orientation
+                new_partner_agent = DirectedAgent(agent.partner.unique_id, self)
+                new_partner_agent.orientation = agent.orientation
+                removed_ids.append(agent.unique_id)
+                removed_ids.append(agent.partner.unique_id)
+                # replace agents in schedule, in grid, update internal states
+                self.replace_agent(agent.partner, new_partner_agent)
+                self.replace_agent(agent, new_agent)
+                print(new_agent)
+                print(new_partner_agent)
 
     def replace_agent(self, agent, new_agent):
         """Replaces solitary agent with paired agent in the schedule, in the grid and update internal states."""
@@ -186,9 +218,9 @@ class RoomModel(mesa.Model):
         bonus_mask = np.ones_like(self.room) * AREA_STATIC_BOOSTER
         tl_x, tl_y = interest_area[0]
         rb_x, rb_y = interest_area[1]
-        bonus_mask[rb_y:tl_y+1, tl_x:rb_x+1] = 0
+        bonus_mask[rb_y:tl_y + 1, tl_x:rb_x + 1] = 0
         # center of area
-        coords = ((rb_x - tl_x)//2 + tl_x, (rb_y - tl_y)//2 + tl_y)
+        coords = ((rb_x - tl_x) // 2 + tl_x, (rb_y - tl_y) // 2 + tl_y)
         static_field = copy.deepcopy(self.sff[coords])
         static_field = static_field * bonus_mask
         if normalize:

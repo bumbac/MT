@@ -98,5 +98,7 @@ class Cell(Agent):
 
         self.model.grid.remove_agent(self.agent)
         self.model.schedule.remove_agent(self.agent)
+        if self.agent.name.startswith("Leader"):
+            self.agent.pos = self.pos
         # evacuation is in the moment of entrance so it is different from self.cell.leave()
         self.agent = None

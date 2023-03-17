@@ -18,6 +18,7 @@ from .utils.portrayal import agent_portrayal
 
 class FileLoader:
     def __init__(self, filename):
+
         if not os.path.isfile(filename):
             raise FileNotFoundError("Map file not found.")
         self.filename = filename
@@ -27,6 +28,10 @@ class FileLoader:
         self.room = None
         self.goals = []
         self.map_hash = None
+        self.pos = {
+            LEADER: [],
+            DIRECTED: []
+        }
         self.load_topology()
         self.sff = {}
         self.hash_control_active = True
@@ -90,52 +95,49 @@ class FileLoader:
             raise FileExistsError("File", self.filename, " for map loading not found.")
         with open(self.filename) as f:
             lines = f.readlines()
-            if len(lines) == 0:
-                raise ValueError("Map file is empty.")
-            lines = [line.rstrip() for line in lines]
-            self.width = len(lines[0])
-            height = 0
-            while height < len(lines) and lines[height][-1] == OBSTACLE:
-                height += 1
-            self.height = height
-            self.room = np.zeros(shape=(self.height, self.width))
-            self.pos = {
-                LEADER: [],
-                FOLLOWER: [],
-                DIRECTED: [],
-                PAIR_DIRECTED: []
-            }
-            for x in range(self.width):
-                for _y in range(self.height):
-                    y = self.height - _y - 1
-                    point = lines[y][x]
-                    if point in MAP_SYMBOLS.keys():
-                        self.room[_y, x] = MAP_SYMBOLS[point]
-                        continue
-                    if point in self.pos.keys():
-                        self.pos[point].append((x, _y))
-            for goal_line in lines[height+1:]:
-                tokens = goal_line.split()
-                goal_symbol = tokens[0]
-                target = tokens[-1]
-                lt = (int(tokens[1]), int(tokens[2]))
-                if goal_symbol == EXIT_GOAL_SYMBOL:
-                    gate_goal = [EXIT_GOAL_SYMBOL, [lt], target]
-                    self.gate = lt
-                    self.goals.append(gate_goal)
-                if goal_symbol == AREA_GOAL_SYMBOL:
-                    rb = (int(tokens[3]), int(tokens[4]))
-                    area_goal = [AREA_GOAL_SYMBOL, [lt, rb], target]
-                    self.goals.append(area_goal)
-                if goal_symbol == LOCATION_GOAL_SYMBOL:
-                    wait_time = tokens[3]
-                    location_goal = [LOCATION_GOAL_SYMBOL, [lt], wait_time, target]
-                    self.goals.append(location_goal)
+        if len(lines) == 0:
+            raise ValueError("Map file is empty.")
+        lines = [line.rstrip() for line in lines]
+        self.width = len(lines[0])
+        height = 0
+        while height < len(lines) and lines[height][-1] == OBSTACLE:
+            height += 1
+        self.height = height
+        self.room = np.zeros(shape=(self.height, self.width))
+        for x in range(self.width):
+            for _y in range(self.height):
+                y = self.height - _y - 1
+                point = lines[y][x]
+                if point in MAP_SYMBOLS.keys():
+                    self.room[_y, x] = MAP_SYMBOLS[point]
+                    continue
+                if point in self.pos.keys():
+                    self.pos[point].append((x, _y))
+        self.load_goals(lines[height+1:])
+
+    def load_goals(self, lines):
+        for goal_line in lines:
+            tokens = goal_line.split()
+            goal_symbol = tokens[0]
+            target = tokens[-1]
+            lt = (int(tokens[1]), int(tokens[2]))
+            if goal_symbol == EXIT_GOAL_SYMBOL:
+                gate_goal = [EXIT_GOAL_SYMBOL, [lt], target]
+                self.gate = lt
+                self.goals.append(gate_goal)
+            if goal_symbol == AREA_GOAL_SYMBOL:
+                rb = (int(tokens[3]), int(tokens[4]))
+                area_goal = [AREA_GOAL_SYMBOL, [lt, rb], target]
+                self.goals.append(area_goal)
+            if goal_symbol == LOCATION_GOAL_SYMBOL:
+                wait_time = tokens[3]
+                leader_position = tokens[4]
+                location_goal = [LOCATION_GOAL_SYMBOL, [lt], wait_time,leader_position, target]
+                self.goals.append(location_goal)
 
     def place_agents(self, model):
         agent_positions = {LEADER: [],
-                           DIRECTED: [],
-                           PAIR_DIRECTED: []}
+                           DIRECTED: []}
         # leader
         for coords in self.pos[LEADER]:
             x, y = coords
@@ -163,50 +165,6 @@ class FileLoader:
             leader.next_cell = leader.cell
             agent_positions[DIRECTED].append(coords)
 
-        if len(self.pos[PAIR_DIRECTED]) == 0:
-            return agent_positions
-
-        # calculate orientation of paired agents
-        directed_agent = DirectedPartnerAgent(0, model)
-        directed_agent.pos = self.pos[PAIR_DIRECTED][1]
-        if len(self.pos[LEADER]) > 0:
-            leader_pos = self.pos[LEADER][0]
-            directed_agent.orientation = directed_agent.calculate_orientation(leader_pos)
-            # todo
-            directed_agent.orientation = ORIENTATION.EAST
-                #directed_agent.orientation.twist(directed_agent.pos, leader_pos)
-        else:
-            raise ValueError("Leader needs to be placed first to calculate orientation of directed agents.")
-
-        grid = np.zeros_like(self.room)
-        no_agent_present = 0
-        agent_present = 1
-        for coords in self.pos[PAIR_DIRECTED]:
-            np_coords = coords[1], coords[0]
-            grid[np_coords] = 1
-        partner_id = 100
-        for idx, flag in np.ndenumerate(grid):
-            if flag == no_agent_present:
-                continue
-            if flag > agent_present:
-                continue
-            coords = idx[1], idx[0]
-            partner_coords = directed_agent.partner_coords(leader=coords)
-            agent_positions[PAIR_DIRECTED].append((coords, partner_coords))
-            if grid[partner_coords[1], partner_coords[0]] == agent_present:
-                grid[idx] = partner_id
-                grid[partner_coords[1], partner_coords[0]] = partner_id
-                partner_id += 100
-                leader = DirectedPartnerAgent(model.generate_uid(), model)
-                partner = DirectedPartnerAgent(model.generate_uid(), model)
-                model.grid.place_agent(leader, coords)
-                model.grid.place_agent(partner, partner_coords)
-                model.schedule.add(leader)
-                model.schedule.add(partner)
-                leader.cell = leader.next_cell = model.grid[coords[0]][coords[1]][0]
-                partner.cell = partner.next_cell = model.grid[partner_coords[0]][partner_coords[1]][0]
-                leader.orientation = ORIENTATION.EAST
-                leader.add_partner(partner)
         return agent_positions
 
     def place_cells(self, model):
