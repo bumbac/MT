@@ -152,8 +152,7 @@ class RoomModel(mesa.Model):
         # check current goals
         if self.current_goal().reached_checkpoint():
             # update for new goal
-            if self.checkpoint():
-                self.sff_update(self.current_goal().area, "Leader")
+            self.checkpoint()
         if self.running:
             self.schedule.step()
         else:

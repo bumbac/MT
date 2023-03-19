@@ -12,14 +12,37 @@ class Goal:
     def reached_checkpoint(self) -> bool:
         pass
 
-    def all_evacuated(self):
-        return len(self.model.schedule.agents) == 1
+    def update(self):
+        pass
 
     def __repr__(self):
         return self.__class__.__name__ + " " + str(self.area) + " " + self.target
 
-    def update(self):
-        pass
+    def all_evacuated(self):
+        return len(self.model.schedule.agents) == 1
+
+    def sff_update(self):
+        """Sets the SFF for all agent types.
+
+        Args:
+            interest_area (lt, rb): Left top xy coordinates and rig
+            key (str): The audience of the SFF.
+            focus: Color focus for cells.
+
+        """
+        virtual_leader_pos = self.model.virtual_leader.pos
+        self.model.sff["Follower"] = self.model.sff[virtual_leader_pos]
+        virtual_leader_goal = self.center_of_area()
+        self.model.sff["Virtual leader"] = self.model.sff[virtual_leader_goal]
+
+        if self.model.leader_front_location_switch:
+            self.model.sff["Leader"] = self.model.sff["Follower"]
+        else:
+            distance, pos = self.leader.most_distant()
+            if distance == 0:
+                self.model.sff["Leader"] = self.model.sff["Follower"]
+            else:
+                self.model.sff["Leader"] = self.model.sff[pos]
 
     def center_of_area(self):
         tl, rb = self.area
@@ -59,32 +82,6 @@ class Goal:
         return cnt
 
 
-class AreaGoal(Goal):
-    def __init__(self, model: mesa.model, area: [(int, int), (int, int)], target="Follower"):
-        super().__init__(model)
-        self.area = area
-        self.target = target
-        self.edges = self.create_edges()
-
-    def reached_checkpoint(self) -> bool:
-        if self.all_evacuated():
-            return True
-        n_agents = self.agents_in_area()
-        return n_agents > 5
-
-    def create_edges(self):
-        tl, rb = self.area
-        tl_x, tl_y = tl
-        rb_x, rb_y = rb
-        edges = [self.center_of_area(),
-                 (tl_x, tl_y), (tl_x, rb_y), (rb_x, rb_y), (rb_x, tl_y)]
-        return edges
-
-    def update(self):
-        self.corner = self.model.schedule.time % 5
-        self.model.sff_update(self.area, key="Leader", focus=self.edges[self.corner])
-
-
 class GateGoal(Goal):
     def __init__(self, model: mesa.model, gate: (int, int), target="Follower"):
         super().__init__(model)
@@ -92,9 +89,10 @@ class GateGoal(Goal):
         self.target = target
 
     def reached_checkpoint(self) -> bool:
-        self.model.split_pairs()
         if self.all_evacuated():
             return True
+        self.sff_update()
+        self.model.split_pairs()
 
 
 class LocationGoal(Goal):
@@ -110,11 +108,15 @@ class LocationGoal(Goal):
     def reached_checkpoint(self) -> bool:
         if self.all_evacuated():
             return True
+        self.sff_update()
+
         self.clock += 1
         self.model.leader_front_location_switch = self.leader_front_location_switch
+        # initiate time_counter
         if self.agents_in_area() > self.time_of_entrance == 0:
             self.time_of_entrance = self.clock
 
+        # if goal is time oriented use it
         if self.wait_time > 0:
             return self.clock - self.wait_time > self.time_of_entrance > 0
         elif self.time_of_entrance > 0:
@@ -122,10 +124,9 @@ class LocationGoal(Goal):
             n_agents = len(agents)
             radius_time_increase = self.clock - self.time_of_entrance
             radius = n_agents // 2 + radius_time_increase
-
+            # are all agents in the radius?
             for agent in agents:
                 d = agent.path_dist(agent.pos, self.center_of_area())
-                print(d, radius_time_increase, radius)
                 if d > radius:
                     return False
             return True
@@ -145,6 +146,7 @@ class GuardGoal(Goal):
     def reached_checkpoint(self) -> bool:
         if self.all_evacuated():
             return True
+        self.sff_update()
         self.clock += 1
         self.model.leader_front_location_switch = self.leader_front_location_switch
         if self.agents_in_area() > self.time_of_entrance == 0:
@@ -166,3 +168,29 @@ class GuardGoal(Goal):
             return True
         return False
 
+
+class AreaGoal(Goal):
+    def __init__(self, model: mesa.model, area: [(int, int), (int, int)], target="Follower"):
+        super().__init__(model)
+        self.area = area
+        self.target = target
+        self.edges = self.create_edges()
+
+    def reached_checkpoint(self) -> bool:
+        if self.all_evacuated():
+            return True
+        self.sff_update()
+        n_agents = self.agents_in_area()
+        return n_agents > 5
+
+    def create_edges(self):
+        tl, rb = self.area
+        tl_x, tl_y = tl
+        rb_x, rb_y = rb
+        edges = [self.center_of_area(),
+                 (tl_x, tl_y), (tl_x, rb_y), (rb_x, rb_y), (rb_x, tl_y)]
+        return edges
+
+    def update(self):
+        self.corner = self.model.schedule.time % 5
+        self.model.sff_update(self.area, key="Leader", focus=self.edges[self.corner])

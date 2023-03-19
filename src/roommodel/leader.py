@@ -23,11 +23,7 @@ class LeaderAgent(Agent):
     def step(self):
         """Stochastically selects next step based on SFF of current goal."""
         self.reset()
-        distance, pos = self.most_distant()
-        if distance == 0 or self.model.leader_front_location_switch:
-            sff = self.model.sff["Follower"]
-        else:
-            sff = self.model.sff_compute([pos, pos])
+        sff = self.model.sff["Leader"]
         self.select_cell(sff)
 
     def middle_crowd(self):
@@ -133,7 +129,7 @@ class VirtualLeader(LeaderAgent):
 
     def advance(self):
         """Updates SFF with his position as goal."""
-        self.model.sff_update([self.pos, self.pos], "Follower")
+        # self.model.sff_update([self.pos, self.pos], "Follower")
 
     def adapt_speed(self):
         """Based on the distance to followers (de)accelerate.
