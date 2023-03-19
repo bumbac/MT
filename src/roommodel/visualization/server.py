@@ -9,7 +9,7 @@ def get_model_step(model):
     return f"Model step: {model.schedule.steps}"
 
 
-filename = "./maps/topology/map11.txt"
+filename = "./maps/topology/map21.txt"
 filename = os.path.abspath(filename)
 fl = FileLoader(filename)
 canvas = fl.get_canvas(1080)
