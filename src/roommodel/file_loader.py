@@ -8,7 +8,6 @@ import mesa
 from .cell import Cell
 from .leader import LeaderAgent, VirtualLeader
 from .directed import DirectedAgent
-from .partner import DirectedPartnerAgent
 from .goal import GateGoal, AreaGoal, LocationGoal
 from .utils.constants import MAP_SYMBOLS, OBSTACLE, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED, EXIT_GOAL_SYMBOL,\
     AREA_GOAL_SYMBOL, LOCATION_GOAL_SYMBOL, ORIENTATION, GATE, EMPTY
@@ -227,6 +226,7 @@ class FileLoader:
                 room[y, x] = MAP_SYMBOLS[GATE]
                 self.sff[(x, y)] = compute_static_field(room, normalize=False)
                 room[y, x] = MAP_SYMBOLS[EMPTY]
+        self.sff["Gate"] = self.sff[self.gate]
         print("SFF calculated in:", time.time() - start, "seconds.")
         with open(data_file, "wb") as f:
             pickle.dump(self.sff, f)

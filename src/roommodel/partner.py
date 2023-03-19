@@ -4,6 +4,7 @@ import numpy as np
 from .directed import DirectedAgent
 from .utils.constants import ORIENTATION, MANEUVERS, KO, KS
 from .utils.portrayal import create_color
+from .utils.algorithms import dist
 
 
 class DirectedPartnerAgent(DirectedAgent):
@@ -110,8 +111,8 @@ class DirectedPartnerAgent(DirectedAgent):
             if next_orientation == top_orientation:
                 penalization[key] = 0
             else:
-                distance_to_leader = min(self.dist(self.pos, self.model.leader.pos),
-                                         self.partner.dist(self.partner.pos, self.model.leader.pos))
+                distance_to_leader = min(self.path_dist(self.pos, self.model.leader.pos),
+                                         self.partner.path_dist(self.partner.pos, self.model.leader.pos))
                 if distance_to_leader > 0:
                     penalization[key] = (1 - (1/distance_to_leader)**2) * self.penalization_orientation
         # apply penalization to each maneuver
@@ -120,7 +121,7 @@ class DirectedPartnerAgent(DirectedAgent):
         # normalize to make probability
         normalize = sum(attraction.values())
         for key in attraction:
-            attraction[key] /= normalize
+                attraction[key] /= normalize
         return attraction
 
     def maneuver_out_of_bounds(self, maneuver):
@@ -184,7 +185,7 @@ class DirectedPartnerAgent(DirectedAgent):
             raise ValueError("Partner already assigned.")
         if not partner:
             raise ValueError("Assigned partner is None.")
-        distance = self.dist(self.pos, partner.pos)
+        distance = dist(self.pos, partner.pos)
         if distance > 1:
             raise ValueError("Partner is too far to assign.")
 

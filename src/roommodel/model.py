@@ -11,6 +11,7 @@ from .utils.constants import AREA_STATIC_BOOSTER, OCCUPIED_CELL, ORIENTATION
 from .utils.algorithms import pair_positions
 from .directed import DirectedAgent
 from .partner import DirectedPartnerAgent
+from .datacollector import RoomDataCollector
 
 
 class RoomModel(mesa.Model):
@@ -61,6 +62,7 @@ class RoomModel(mesa.Model):
         self.leader, self.virtual_leader = self.file_loader.get_leader()
         # update OF and update internal states of agents
         self.initialize_agents()
+        self.datacollector = RoomDataCollector(self)
 
     def initialize_agents(self):
         """Update OF and update internal states of agents."""
@@ -114,7 +116,7 @@ class RoomModel(mesa.Model):
                 continue
             if agent.unique_id in removed_ids:
                 continue
-            d = agent.dist(agent.pos, self.gate)
+            d = agent.path_dist(agent.pos, self.gate)
             if d <= 2:
                 new_agent = DirectedAgent(agent.unique_id, self)
                 new_agent.orientation = agent.orientation
@@ -125,8 +127,6 @@ class RoomModel(mesa.Model):
                 # replace agents in schedule, in grid, update internal states
                 self.replace_agent(agent.partner, new_partner_agent)
                 self.replace_agent(agent, new_agent)
-                print(new_agent)
-                print(new_partner_agent)
 
     def replace_agent(self, agent, new_agent):
         """Replaces solitary agent with paired agent in the schedule, in the grid and update internal states."""
@@ -144,6 +144,8 @@ class RoomModel(mesa.Model):
     def step(self):
         """Execute one model step."""
         print("-----------")
+        self.datacollector.distance_heatmap()
+        self.datacollector.dist_to_leader()
         # always pair solitary agents if found
         self.form_pairs()
 
@@ -154,6 +156,9 @@ class RoomModel(mesa.Model):
                 self.sff_update(self.current_goal().area, "Leader")
         if self.running:
             self.schedule.step()
+        else:
+            data = self.datacollector.get_data()
+            self.datacollector.flush()
 
     def current_goal(self) -> Goal:
         """Goals are a stored in a stack populated by goals in file.
@@ -213,6 +218,9 @@ class RoomModel(mesa.Model):
             np.array(height, width) of SFF values.
 
         """
+        if not focus:
+            focus = 1
+            focus += 1
         if not interest_area:
             raise ValueError("Missing area of interest for SFF.")
         bonus_mask = np.ones_like(self.room) * AREA_STATIC_BOOSTER

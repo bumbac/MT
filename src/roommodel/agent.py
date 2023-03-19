@@ -3,6 +3,7 @@ import numpy as np
 
 from .utils.portrayal import create_color
 from .utils.constants import SFF_OBSTACLE, KS, KO, KD, GAMMA, OCCUPIED_CELL, EMPTY_CELL
+from .utils.algorithms import dist
 
 
 class Agent(mesa.Agent):
@@ -36,7 +37,7 @@ class Agent(mesa.Agent):
         self.partner = None
         self.tau = 0
         self.nominal_movement_duration = self.model.agent_movement_duration
-        self.movement_duration = self.nominal_movement_duration
+        self.movement_duration = int(self.nominal_movement_duration)
         self.penalization_orientation = self.model.penalization_orientation
         self.penalization_cross_obstacle = 0.5
         self.k = {KS: self.model.ks,
@@ -50,15 +51,19 @@ class Agent(mesa.Agent):
     def debug(self):
         print(self.unique_id, self.k[KS], "\t", self.k[KO], "MD:", self.movement_duration, "\t", "P:", self.penalization_orientation)
 
-    def dist(self, start, goal):
-        """Manhattan distance from start to goal.
+    def path_dist(self, goal, start=None):
+        """Path distance from start to goal. If start is None, use agent pos.
 
         Args:
             start Tuple[int,int]: xy coordinates of start position.
             goal Tuple[int,int]: xy coordinates of goal position.
 
         """
-        return np.abs(start[0] - goal[0]) + np.abs(start[1] - goal[1])
+        if start is None:
+            start = self.pos
+        sff = self.model.sff["Gate"]
+        d = sff[start[1], start[0]] - sff[goal[1], goal[0]]
+        return abs(d)
 
     def reset(self):
         """Reset state variables of the agent."""
@@ -103,8 +108,8 @@ class Agent(mesa.Agent):
         discipline = 1
 
         # discipline calculation based on distance to leader
-        if self.name.startswith("Follower") and self.dist(self.pos, self.model.leader.pos) > 0:
-            distance_to_leader = self.dist(self.pos, self.model.leader.pos)
+        distance_to_leader = self.path_dist(self.pos, self.model.leader.pos)
+        if self.name.startswith("Follower") and distance_to_leader > 0:
             discipline = 1 + 1 / distance_to_leader
         # mixing P_s and P_o based od ko sensitivity
         P_s = {'top': {}, 'bottom_sum': 0}
@@ -148,8 +153,7 @@ class Agent(mesa.Agent):
             attraction_final[pos] = ko * attraction_static_occupancy[pos] + (1 - ko) * attraction_static[pos]
         return attraction_final
 
-    @staticmethod
-    def stochastic_choice(attraction):
+    def stochastic_choice(self, attraction):
         """Pick xy coordinates stochastically based on probability in attraction.
 
         Args:
@@ -161,15 +165,24 @@ class Agent(mesa.Agent):
         """
         coords = list(attraction.keys())
         probabilities = list(attraction.values())
-        probabilities = probabilities / sum(probabilities)
+        norm = sum(probabilities)
+        if norm == 0 or norm == np.inf or norm == -np.inf or np.isnan(norm):
+            if self.partner:
+                return (self.pos, self.orientation), (self.partner.pos, self.orientation)
+            else:
+                return self.pos
+        probabilities = probabilities / norm
         idx = np.random.choice(len(coords), p=probabilities)
+
         return coords[idx]
 
-    @staticmethod
-    def deterministic_choice(attraction):
+    def deterministic_choice(self, attraction):
         coords = list(attraction.keys())
-        probs = list(attraction.values())
-        choices = [(coords[i], probs[i]) for i in range(len(attraction))]
+        probabilities = list(attraction.values())
+        norm = sum(probabilities)
+        if norm == 0 or norm == np.inf or norm == -np.inf or np.isnan(norm):
+            return self.pos
+        choices = [(coords[i], probabilities[i]) for i in range(len(attraction))]
         choices = sorted(choices, key=lambda x: x[1], reverse=True)
         top_coords, top_prob = choices[0]
         return top_coords
@@ -218,7 +231,7 @@ class Agent(mesa.Agent):
 
         """
         cell = self.next_cell
-        self.tau += self.movement_cost()
+        self.tau = max(self.model.schedule.time, self.tau) + self.movement_cost()
         self.model.grid.move_agent(self, cell.pos)
         self.model.of[cell.pos[1], cell.pos[0]] = OCCUPIED_CELL
         # prev cell
@@ -247,7 +260,7 @@ class Agent(mesa.Agent):
         """
         distance = 0
         if self.next_cell:
-            distance = self.dist(self.pos, self.next_cell.pos)
+            distance = dist(self.pos, self.next_cell.pos)
         if distance == 0:
             return 0
         # diagonal movements have same value as normal values
@@ -264,12 +277,8 @@ class Agent(mesa.Agent):
         increase speed.
 
         """
-        if self.name.startswith("Leader"):
-            d, _ = self.most_distant()
-            if d > 3:
-                d = 1
-        else:
-            d = self.dist(self.pos, self.model.leader.pos)
+        # d = self.path_dist(self.pos, self.model.leader.pos)
+        d = 1
         if self.next_cell is not None and d > 0:
             if self.next_cell.agent is None:
                 self.movement_duration = round(self.nominal_movement_duration - self.movement_duration * 1/d)

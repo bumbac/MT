@@ -4,6 +4,7 @@ import numpy as np
 
 from .agent import Agent
 from .utils.portrayal import rgb_to_hex
+from .utils.constants import EMPTY_CELL
 
 
 class Cell(Agent):
@@ -101,4 +102,5 @@ class Cell(Agent):
         if self.agent.name.startswith("Leader"):
             self.agent.pos = self.pos
         # evacuation is in the moment of entrance so it is different from self.cell.leave()
+        self.model.of[self.pos[1], self.pos[0]] = EMPTY_CELL
         self.agent = None

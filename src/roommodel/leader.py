@@ -5,11 +5,6 @@ from .utils.portrayal import create_color
 from .utils.constants import KS, KO, KD, GAMMA, OCCUPIED_CELL
 from .agent import Agent
 
-import matplotlib
-
-matplotlib.use('tkagg')
-import matplotlib.pyplot as plt
-
 
 class LeaderAgent(Agent):
     """Physical solitary leader agent with no orientation. Influences agents in neighbourhood.
@@ -21,14 +16,16 @@ class LeaderAgent(Agent):
         super().__init__(uid, model)
         self.color = create_color(self)
         self.name = "Leader: " + str(self.unique_id)
-        self.movement_duration = self.model.leader_movement_duration
+        self.nominal_movement_duration = self.model.leader_movement_duration
+        self.movement_duration = self.nominal_movement_duration
+        self.k[KS] = self.k[KS] * 2
 
     def step(self):
         """Stochastically selects next step based on SFF of current goal."""
         self.reset()
         distance, pos = self.most_distant()
         if distance == 0 or self.model.leader_front_location_switch:
-            sff = self.model.sff["Leader"]
+            sff = self.model.sff["Follower"]
         else:
             sff = self.model.sff_compute([pos, pos])
         self.select_cell(sff)
@@ -41,8 +38,10 @@ class LeaderAgent(Agent):
 
         """
         distances = []
+        virtual_leader_pos = self.model.virtual_leader.pos
         for agent in self.model.schedule.agents:
-            d = self.dist(self.pos, agent.pos)
+            # incorrect measure
+            d = self.path_dist(virtual_leader_pos, agent.pos)
             distances.append((d, agent.pos))
         distances = sorted(distances, key=lambda x: x[0], reverse=True)
         median = len(distances) // 2
@@ -51,19 +50,52 @@ class LeaderAgent(Agent):
     def most_distant(self):
         """Position of the most distant agent from Virtual leader.
 
+        Most distant agent is on the tail and it can be used as a reference
+        to the length of the queue by comparing it to the position
+        of virtual leader.
+
+        The value is used to control the speed of Leader and Virtual leader.
+
         Returns:
             (int, (int, int)): Manhattan distance and xy coordinates of most distant agent.
 
         """
-        distances = [(0, self.pos)]
+        distances = []
         occupancy_grid = self.model.of
-        sff = self.model.sff["Leader"]
-        for x, y in np.argwhere(occupancy_grid == OCCUPIED_CELL):
-            if (y, x) == self.pos:
+        virtual_leader_pos = self.model.virtual_leader.pos
+        for y, x in np.argwhere(occupancy_grid == OCCUPIED_CELL):
+            if (x, y) == self.pos:
                 continue
-            distances.append((sff[x, y], [y, x]))
+            distances.append((self.path_dist(virtual_leader_pos, (x, y)), (x, y)))
         distances = sorted(distances, key=lambda dist_pos: dist_pos[0], reverse=True)
-        return distances[0]
+        if len(distances) > 0:
+            return distances[0]
+        else:
+            return 0, self.pos
+
+    def adapt_speed(self):
+        """Based on the distance to followers (de)accelerate.
+
+        When agent is at the front, he tries to maintain the length
+        of the queue to be around num_of_follower / 2.
+        When agent is at the back he tries to be very close to the last
+        agent.
+        """
+        self.nominal_movement_duration = 0
+        d, pos = self.most_distant()
+        if self.model.leader_front_location_switch:
+            if d < (len(self.model.schedule.agents) // 2):
+                d = 1
+            else:
+                d = 2
+        else:
+            if d > 5:
+                d = 0
+            else:
+                d = 1
+        if self.next_cell is not None:
+            if self.next_cell.agent is None:
+                self.movement_duration = round(self.nominal_movement_duration * d)
 
 
 class VirtualLeader(LeaderAgent):
@@ -82,18 +114,6 @@ class VirtualLeader(LeaderAgent):
                   KD: 0,
                   GAMMA: 0}
 
-    def distance_heatmap(self):
-        occupancy_grid = self.model.of
-        height, width = occupancy_grid.shape
-        if self.data is None:
-            self.data = np.zeros(shape=(height, width))
-        for y, x in np.argwhere(occupancy_grid == OCCUPIED_CELL):
-            self.data[height - y, x] += 1
-        if self.model.schedule.steps % 16 == 0:
-            plt.imshow(self.data)
-            plt.show(block=False)
-            plt.pause(0.1)
-
     def step(self):
         """Stochastically selects next cell based on SFF of current goal.
 
@@ -101,14 +121,34 @@ class VirtualLeader(LeaderAgent):
 
         """
         self.reset()
-        # self.distance_heatmap()
         cells = self.model.grid.get_neighborhood(self.pos, include_center=True, moore=True)
         sff = self.model.sff["Leader"]
         attraction = self.attraction(sff, cells)
         coords = self.deterministic_choice(attraction)
         cell = self.model.grid[coords[0]][coords[1]][0]
+        self.next_cell = cell
+        self.adapt_speed()
+        self.tau = max(self.model.schedule.time, self.tau) + self.movement_cost()
         self.pos = cell.pos
 
     def advance(self):
         """Updates SFF with his position as goal."""
         self.model.sff_update([self.pos, self.pos], "Follower")
+
+    def adapt_speed(self):
+        """Based on the distance to followers (de)accelerate.
+
+        When agent is at the front, he tries to maintain the length
+        of the queue to be around num_of_follower / 2.
+        When agent is at the back he tries to be very close to the last
+        agent.
+        """
+        d, pos = self.most_distant()
+
+        if d < (len(self.model.schedule.agents) // 2):
+            d = 1
+        else:
+            d = 2
+        if self.next_cell is not None:
+            if self.next_cell.agent is None:
+                self.movement_duration = round(self.nominal_movement_duration * d)

@@ -124,7 +124,42 @@ class LocationGoal(Goal):
             radius = n_agents // 2 + radius_time_increase
 
             for agent in agents:
-                d = agent.dist(agent.pos, self.center_of_area())
+                d = agent.path_dist(agent.pos, self.center_of_area())
+                print(d, radius_time_increase, radius)
+                if d > radius:
+                    return False
+            return True
+        return False
+
+
+class GuardGoal(Goal):
+    def __init__(self, model: mesa.model, location: (int, int), wait_time=10, leader_position="Back", target="Follower"):
+        super().__init__(model)
+        self.area = [location, location]
+        self.target = target
+        self.clock = 0
+        self.time_of_entrance = 0
+        self.wait_time = int(wait_time)
+        self.leader_front_location_switch = True if leader_position == "Front" else False
+
+    def reached_checkpoint(self) -> bool:
+        if self.all_evacuated():
+            return True
+        self.clock += 1
+        self.model.leader_front_location_switch = self.leader_front_location_switch
+        if self.agents_in_area() > self.time_of_entrance == 0:
+            self.time_of_entrance = self.clock
+
+        if self.wait_time > 0:
+            return self.clock - self.wait_time > self.time_of_entrance > 0
+        elif self.time_of_entrance > 0:
+            agents = self.model.schedule.agents
+            n_agents = len(agents)
+            radius_time_increase = self.clock - self.time_of_entrance
+            radius = n_agents // 2 + radius_time_increase
+
+            for agent in agents:
+                d = agent.path_dist(agent.pos, self.center_of_area())
                 print(d, radius_time_increase, radius)
                 if d > radius:
                     return False
