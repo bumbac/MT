@@ -110,7 +110,7 @@ class Agent(mesa.Agent):
         # discipline calculation based on distance to leader
         distance_to_leader = self.path_dist(self.pos, self.model.leader.pos)
         if self.name.startswith("Follower") and distance_to_leader > 0:
-            discipline = 1 + 1 / distance_to_leader
+            discipline += 1 / distance_to_leader
         # mixing P_s and P_o based od ko sensitivity
         P_s = {'top': {}, 'bottom_sum': 0}
         attraction_static = {}
@@ -126,8 +126,7 @@ class Agent(mesa.Agent):
         offset_sff_neighbourhood -= np.min(offset_sff_neighbourhood)
         for pos in cells:
             offset_cell = pos[1] - self.pos[1] + 2, pos[0] - self.pos[0] + 2
-            # S belongs to [0, 1]
-            S = offset_sff_neighbourhood[offset_cell] * discipline
+            S = offset_sff_neighbourhood[offset_cell] ** discipline
             # O is 0 or 1
             Occupy = 0
             if self.model.of[pos[1], pos[0]] == OCCUPIED_CELL:
@@ -277,8 +276,8 @@ class Agent(mesa.Agent):
         increase speed.
 
         """
-        # d = self.path_dist(self.pos, self.model.leader.pos)
-        d = 1
+        d = self.path_dist(self.pos, self.model.leader.pos)
+        self.movement_duration = self.nominal_movement_duration
         if self.next_cell is not None and d > 0:
             if self.next_cell.agent is None:
                 self.movement_duration = round(self.nominal_movement_duration - self.movement_duration * 1/d)

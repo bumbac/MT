@@ -38,7 +38,7 @@ class Goal:
         if self.model.leader_front_location_switch:
             self.model.sff["Leader"] = self.model.sff["Follower"]
         else:
-            distance, pos = self.leader.most_distant()
+            distance, pos = self.model.leader.most_distant()
             if distance == 0:
                 self.model.sff["Leader"] = self.model.sff["Follower"]
             else:
@@ -127,6 +127,7 @@ class LocationGoal(Goal):
             # are all agents in the radius?
             for agent in agents:
                 d = agent.path_dist(agent.pos, self.center_of_area())
+                print(d, radius)
                 if d > radius:
                     return False
             return True
@@ -143,27 +144,34 @@ class GuardGoal(Goal):
         self.wait_time = int(wait_time)
         self.leader_front_location_switch = True if leader_position == "Front" else False
 
+    def sff_update(self):
+        virtual_leader_pos = self.model.virtual_leader.pos
+        self.model.sff["Follower"] = self.model.sff[virtual_leader_pos]
+        virtual_leader_goal = self.model.gate
+        self.model.sff["Virtual leader"] = self.model.sff[virtual_leader_goal]
+        leader_goal = self.center_of_area()
+        self.model.sff["Leader"] = self.model.sff[leader_goal]
+
     def reached_checkpoint(self) -> bool:
         if self.all_evacuated():
             return True
         self.sff_update()
         self.clock += 1
         self.model.leader_front_location_switch = self.leader_front_location_switch
-        if self.agents_in_area() > self.time_of_entrance == 0:
+        guard_pos = self.model.leader.pos
+        # Leader arrived to the checkpoint
+        if guard_pos in self.coords_in_checkpoint() and self.time_of_entrance == 0:
             self.time_of_entrance = self.clock
 
         if self.wait_time > 0:
             return self.clock - self.wait_time > self.time_of_entrance > 0
         elif self.time_of_entrance > 0:
             agents = self.model.schedule.agents
-            n_agents = len(agents)
-            radius_time_increase = self.clock - self.time_of_entrance
-            radius = n_agents // 2 + radius_time_increase
-
+            gate_pos = self.model.gate
+            guard_distance = agents[0].path_dist(guard_pos, gate_pos)
             for agent in agents:
-                d = agent.path_dist(agent.pos, self.center_of_area())
-                print(d, radius_time_increase, radius)
-                if d > radius:
+                d = agent.path_dist(agent.pos, gate_pos)
+                if d > guard_distance:
                     return False
             return True
         return False

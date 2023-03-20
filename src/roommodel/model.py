@@ -129,13 +129,13 @@ class RoomModel(mesa.Model):
                 self.replace_agent(agent, new_agent)
 
     def replace_agent(self, agent, new_agent):
-        """Replaces solitary agent with paired agent in the schedule, in the grid and update internal states."""
+        """Replaces agent with other agent in the schedule=, in the grid and update internal states."""
         agent_position = agent.pos
         agent_cell = self.grid.grid[agent_position[0]][agent_position[1]][0]
-        if agent:
+        if agent is not None:
             self.grid.remove_agent(agent)
             self.schedule.remove_agent(agent)
-        if new_agent:
+        if new_agent is not None:
             self.schedule.add(new_agent)
             agent_cell.agent = new_agent
             new_agent.cell = agent_cell
@@ -145,7 +145,7 @@ class RoomModel(mesa.Model):
         """Execute one model step."""
         print("-----------")
         self.datacollector.distance_heatmap()
-        self.datacollector.dist_to_leader()
+        self.datacollector.distance_to_leader()
         # always pair solitary agents if found
         self.form_pairs()
 
@@ -170,6 +170,7 @@ class RoomModel(mesa.Model):
 
     def checkpoint(self):
         """Current goal is reached and assigns a new one."""
+        self.datacollector.events(self.current_goal())
         cp = self.goals.pop(0)
         print("Checkpoint", cp, "finished.")
         print("Checkpoint", cp, "finished.")
