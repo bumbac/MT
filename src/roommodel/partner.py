@@ -79,7 +79,7 @@ class DirectedPartnerAgent(DirectedAgent):
         for leader, partner in maneuvers:
             cells[0].append(leader[0])
             cells[1].append(partner[0])
-        # discipline is already included
+        # influence of discipline is already calculated in attractions
         leader_attraction = super(DirectedPartnerAgent, self).attraction(sff, cells[0])
         partner_attraction = super(DirectedPartnerAgent, self.partner).attraction(sff, cells[1])
         attraction = {}
@@ -87,11 +87,10 @@ class DirectedPartnerAgent(DirectedAgent):
             coords, _ = leader
             p_coords, _ = partner
             penalization = 0
-            # cross obstacle penalization
-            if self.cross_obstacle(leader[0]) \
-                    or self.partner.cross_obstacle(partner[0]):
+            # cross obstacle penalization toggles if any agent crosses obstacle
+            if self.cross_obstacle(leader[0]) or self.partner.cross_obstacle(partner[0]):
                 penalization = self.penalization_cross_obstacle
-            # if any agent has zero attraction that movement is forbidden
+            # if any agent has zero attraction the movement is forbidden
             if leader_attraction[coords] == 0 or partner_attraction[p_coords] == 0:
                 attraction[(leader, partner)] = 0
             else:
@@ -104,24 +103,28 @@ class DirectedPartnerAgent(DirectedAgent):
                 top_maneuver = (attraction[key], key)
         _, top_key = top_maneuver
         top_orientation = top_key[0][1]
-        # orientation penalisation
+        # orientation penalization
         penalization = {}
         for key in attraction:
             _, next_orientation = key[0]
+            # maneuver results in correct orientation, do not penalize
             if next_orientation == top_orientation:
                 penalization[key] = 0
             else:
-                distance_to_leader = min(self.path_dist(self.pos, self.model.leader.pos),
-                                         self.partner.path_dist(self.partner.pos, self.model.leader.pos))
+                distance_to_leader = min(self.leader_dist(),
+                                         self.partner.leader_dist())
+                # maneuver results in incorrect orientation, penalize
+                # smalled distance_to_leader results in higher penalization value
+                # higher penalization value makes the maneuver less probable
                 if distance_to_leader > 0:
-                    penalization[key] = (1 - (1/distance_to_leader)**2) * self.penalization_orientation
+                    penalization[key] = ((1/distance_to_leader) ** 0.5) * self.penalization_orientation
         # apply penalization to each maneuver
         for key in penalization:
             attraction[key] = attraction[key] * (1 - penalization[key])
         # normalize to make probability
         normalize = sum(attraction.values())
         for key in attraction:
-                attraction[key] /= normalize
+            attraction[key] /= normalize
         return attraction
 
     def maneuver_out_of_bounds(self, maneuver):

@@ -92,6 +92,8 @@ class FileLoader:
         canvas_height = CELL_SIZE*self.height
         return mesa.visualization.CanvasGrid(agent_portrayal, self.width, self.height, canvas_width, canvas_height)
 
+    def get_filename(self):
+        return self.filename
     def load_topology(self):
         if self.filename is None:
             raise FileNotFoundError("Filename for map loading cannot be None.")

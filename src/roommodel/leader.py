@@ -36,7 +36,7 @@ class LeaderAgent(Agent):
         virtual_leader_pos = self.model.virtual_leader.pos
         for agent in self.model.schedule.agents:
             # incorrect measure
-            d = self.path_dist(virtual_leader_pos, agent.pos)
+            d = self.dist(virtual_leader_pos, agent.pos)
             distances.append((d, agent.pos))
         distances = sorted(distances, key=lambda x: x[0], reverse=True)
         median = len(distances) // 2
@@ -61,7 +61,7 @@ class LeaderAgent(Agent):
         for y, x in np.argwhere(occupancy_grid == OCCUPIED_CELL):
             if (x, y) == self.pos:
                 continue
-            distances.append((self.path_dist(virtual_leader_pos, (x, y)), (x, y)))
+            distances.append((self.dist(virtual_leader_pos, (x, y)), (x, y)))
         distances = sorted(distances, key=lambda dist_pos: dist_pos[0], reverse=True)
         if len(distances) > 0:
             return distances[0]

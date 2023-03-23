@@ -1,4 +1,7 @@
 import copy
+import logging
+import os
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 import numpy as np
 import mesa
@@ -35,9 +38,9 @@ class RoomModel(mesa.Model):
     """
 
     def __init__(self, ks, ko, kd, leader_movement_duration, agent_movement_duration, penalization_orientation,
-                 leader_front_location_switch, filename):
+                 leader_front_location_switch, fileloader):
         super().__init__()
-        self.file_loader = FileLoader(filename)
+        self.file_loader = fileloader
         self.ks = ks
         self.ko = ko
         self.kd = kd
@@ -45,7 +48,7 @@ class RoomModel(mesa.Model):
         self.agent_movement_duration = agent_movement_duration
         self.penalization_orientation = penalization_orientation
         self.leader_front_location_switch = leader_front_location_switch
-        self.filename = filename
+        self.filename = self.file_loader.get_filename()
         self.dimensions = self.file_loader.dimensions()
         self.schedule = SequentialActivation(self)
         self.grid = mesa.space.MultiGrid(*self.dimensions, torus=False)
@@ -63,6 +66,13 @@ class RoomModel(mesa.Model):
         # update OF and update internal states of agents
         self.initialize_agents()
         self.datacollector = RoomDataCollector(self)
+        """ CRITICAL 50
+            ERROR 40
+            WARNING 30
+            INFO 20
+            DEBUG 10
+            NOTSET 0 """
+        self.logger = logging.getLogger(__name__)
 
     def initialize_agents(self):
         """Update OF and update internal states of agents."""
@@ -143,9 +153,10 @@ class RoomModel(mesa.Model):
 
     def step(self):
         """Execute one model step."""
-        print("-----------")
+        self.logger.info("---------------")
         self.datacollector.distance_heatmap()
         self.datacollector.distance_to_leader()
+        self.datacollector.gaps_between_agents()
         # always pair solitary agents if found
         self.form_pairs()
 
@@ -170,15 +181,13 @@ class RoomModel(mesa.Model):
 
     def checkpoint(self):
         """Current goal is reached and assigns a new one."""
-        self.datacollector.events(self.current_goal())
         cp = self.goals.pop(0)
-        print("Checkpoint", cp, "finished.")
-        print("Checkpoint", cp, "finished.")
-        print("Checkpoint", cp, "finished.")
+        self.datacollector.events(cp)
+        self.logger.info("Checkpoint "+str(cp)+" finished.")
         if len(self.goals) > 0:
             return True
         else:
-            print("Finished evacuation.")
+            self.logger.info("Finished evacuation.")
             self.running = False
             return False
 

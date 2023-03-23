@@ -127,7 +127,6 @@ class LocationGoal(Goal):
             # are all agents in the radius?
             for agent in agents:
                 d = agent.path_dist(agent.pos, self.center_of_area())
-                print(d, radius)
                 if d > radius:
                     return False
             return True

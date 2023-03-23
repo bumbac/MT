@@ -2,7 +2,7 @@ import mesa
 import numpy as np
 import pandas as pd
 import matplotlib
-
+import os
 matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
 
@@ -70,6 +70,69 @@ class RoomDataCollector(mesa.DataCollector):
                 data[uid].append(d_to_leader)
         self.data[key] = data
 
+    def gaps_between_agents(self):
+        key = self.gaps_between_agents.__name__
+        if key not in self.data:
+            self.data[key] = {uid: [] for uid in self.model.schedule.get_agents()}
+            self.data[key][-1] = True
+            del self.data[key][self.model.leader.unique_id]
+            del self.data[key][self.model.virtual_leader.unique_id]
+        if self.events.__name__ in self.data:
+            event_data = self.data[self.events.__name__]
+        else:
+            return
+        if len(event_data) < 1:
+            return
+        data = self.data[key]
+        if len(event_data) == 1:
+            ctr = 0
+            for agent in self.model.schedule.agents:
+                if agent.partner is not None:
+                    if agent.leader:
+                        uid = agent.unique_id
+                        if len(data[uid]) > 0:
+                            data[uid].append((agent.pos, agent.partner.pos, data[uid][0][2]))
+                        elif data[-1]:
+                            data[uid].append((agent.pos, agent.partner.pos, ctr))
+                        ctr += 1
+            data[-1] = False
+        self.data[key] = data
+
+    def visualize_gaps_between_agents(self):
+        key = self.gaps_between_agents.__name__
+        data = self.data[key]
+        del data[-1]
+        leader_uids = []
+        leader_ctr = []
+        for uid in data:
+            if len(data[uid]) > 0:
+                leader_uids.append(uid)
+                leader_ctr.append(data[uid][0][2])
+        leader_starts = {uid: [] for uid in leader_uids}
+        n_dist = len(leader_starts)
+        test_length = 20
+        for uid in leader_uids:
+            for item in data[uid]:
+                leader, partner, ctr = item
+                leader_starts[uid].append((leader[0]+partner[0])/2)
+        if os.path.exists("gaps.npy"):
+            distances = list(np.load("gaps.npy", allow_pickle=True))
+            distances = [list(a) for a in distances]
+        else:
+            distances = [[] for _ in range(n_dist)]
+        for i in range(test_length):
+            p = []
+            for uid in leader_starts:
+                if len(leader_starts[uid]) <= i:
+                    continue
+                else:
+                    p.append(leader_starts[uid][i])
+            p = sorted(p)
+            low_p = p[0]
+            for j, pp in enumerate(p):
+                distances[j].append(pp - low_p)
+        np.save("gaps.npy", distances)
+
     def boxplot_distance_to_leader(self):
         key = self.distance_to_leader.__name__
         data = self.data[key]
@@ -80,7 +143,6 @@ class RoomDataCollector(mesa.DataCollector):
             x_pos = data[uid][50]
             if x_pos == 0:
                 continue
-            print(x_pos, uid, data[uid])
             ax.boxplot(data[uid], positions=[x_pos], showfliers=False)
             ax.scatter(x_pos, data[uid][0])
         plt.show(block=False)
@@ -89,20 +151,18 @@ class RoomDataCollector(mesa.DataCollector):
     def visual_distance_to_leader(self):
         key = self.distance_to_leader.__name__
         data = self.data[key]
+        del data[self.model.leader.unique_id]
+        del data[self.model.virtual_leader.unique_id]
         plt.figure(figsize=(10, 20))
         y = []
         low_limit = 0
         hi_limit = -1
+        smoothing_level = 5
         for uid in data:
             y.append(len(data[uid]))
-        for agent in self.model.schedule.agents:
-            if agent.partner is not None:
-                uid = agent.unique_id
-                data[uid] = rolling_avg(data[uid], 30)
-        for uid in data:
-            data[uid] = np.array(data[uid][low_limit:hi_limit])
+            data[uid] = rolling_avg(data[uid], smoothing_level)[low_limit:hi_limit]
         y = minmax_norm(np.array(y))
-        cm = plt.get_cmap("jet")
+        cm = plt.get_cmap("viridis")
         y = [cm(a) for a in y]
         for uid in data:
             data[uid] = np.array(data[uid])
@@ -134,11 +194,12 @@ class RoomDataCollector(mesa.DataCollector):
         plt.show(block=False)
 
     def get_data(self):
-        self.boxplot_distance_to_leader()
-        self.visual_distance_to_leader()
-        self.visualize_distance_heatmap()
+        # self.boxplot_distance_to_leader()
+        # self.visual_distance_to_leader()
+        # self.visualize_distance_heatmap()
+        self.visualize_gaps_between_agents()
         return self.data
 
     def flush(self):
-        print(self.__name__, "flushed.")
+        self.model.logger.info(self.__name__, "flushed.")
         self.data = {}

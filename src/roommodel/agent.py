@@ -49,7 +49,14 @@ class Agent(mesa.Agent):
         return self.name + " " + str(self.pos)
 
     def debug(self):
-        print(self.unique_id, self.k[KS], "\t", self.k[KO], "MD:", self.movement_duration, "\t", "P:", self.penalization_orientation)
+        self.model.logger.debug(str(self.unique_id)+str(self.k[KS])+str(self.k[KO])+"MD:"+str(self.movement_duration)
+                                +"\tP:"+str(self.penalization_orientation))
+
+    def dist(self, goal, start=None):
+        if start is None:
+            start = self.pos
+        sff = self.model.sff[goal]
+        return sff[start[1], start[0]]
 
     def path_dist(self, goal, start=None):
         """Path distance from start to goal. If start is None, use agent pos.
@@ -64,6 +71,12 @@ class Agent(mesa.Agent):
         sff = self.model.sff["Gate"]
         d = sff[start[1], start[0]] - sff[goal[1], goal[0]]
         return abs(d)
+
+    def leader_dist(self, start=None):
+        if start is None:
+            start = self.pos
+        sff = self.model.sff[self.model.leader.pos]
+        return sff[start[1], start[0]]
 
     def reset(self):
         """Reset state variables of the agent."""
@@ -108,7 +121,7 @@ class Agent(mesa.Agent):
         discipline = 1
 
         # discipline calculation based on distance to leader
-        distance_to_leader = self.path_dist(self.pos, self.model.leader.pos)
+        distance_to_leader = self.leader_dist()
         if self.name.startswith("Follower") and distance_to_leader > 0:
             discipline += 1 / distance_to_leader
         # mixing P_s and P_o based od ko sensitivity
@@ -123,10 +136,12 @@ class Agent(mesa.Agent):
         for pos in cells:
             offset_cell = pos[1] - self.pos[1] + 2, pos[0] - self.pos[0] + 2
             offset_sff_neighbourhood[offset_cell] = sff[pos[1], pos[0]]
-        offset_sff_neighbourhood -= np.min(offset_sff_neighbourhood)
+        offset_sff_neighbourhood -= offset_sff_neighbourhood[2,2]
         for pos in cells:
             offset_cell = pos[1] - self.pos[1] + 2, pos[0] - self.pos[0] + 2
-            S = offset_sff_neighbourhood[offset_cell] ** discipline
+            S = offset_sff_neighbourhood[offset_cell]
+            ks = self.k[KS] * discipline
+            # self.model.logger.debug(str(discipline)+str(distance_to_leader)+str(S)+str(ks)+str(self.k[KS]))
             # O is 0 or 1
             Occupy = 0
             if self.model.of[pos[1], pos[0]] == OCCUPIED_CELL:
@@ -276,7 +291,7 @@ class Agent(mesa.Agent):
         increase speed.
 
         """
-        d = self.path_dist(self.pos, self.model.leader.pos)
+        d = self.leader_dist()
         self.movement_duration = self.nominal_movement_duration
         if self.next_cell is not None and d > 0:
             if self.next_cell.agent is None:
