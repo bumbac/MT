@@ -50,6 +50,10 @@ class Experiment:
         self.do_save = True
         self.do_show = False
         self.figsize = FIGSIZE4_3
+        self.compatible_maps = []
+
+    def compatible(self):
+        return self.filename in self.compatible_maps
 
     def update(self):
         pass
@@ -73,6 +77,9 @@ class ExperimentDistanceHeatmap(Experiment):
         super().__init__(model)
         self.do_show = False
 
+    def compatible(self):
+        return True
+
     def update(self):
         occupancy_grid = self.model.of
         key = 0
@@ -89,6 +96,9 @@ class ExperimentDistanceHeatmap(Experiment):
         fig, ax = plt.subplots(figsize=self.figsize)
         plt.title("Frequency of occupied cells")
         ax.imshow(data)
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+
         if save or self.do_save:
             plt.savefig(self.graphs_location + ".png")
             plt.savefig(self.graphs_location + ".pdf")
@@ -101,19 +111,30 @@ class ExperimentDistanceToLeader(Experiment):
     def __init__(self, model):
         super().__init__(model)
         self.do_show = False
+        self.compatible_maps = ["gaps.txt", "gaps_back.txt", "gaps_short.txt", "right_turn_short.txt"]
+
+    def load(self):
+        if os.path.exists(self.data_location+".dat"):
+            with open(self.data_location+".dat", "rb") as f:
+                return pickle.load(f)
+        else:
+            return {}
+
+    def save(self):
+        key = 0
+        with open(self.data_location+".dat", "wb") as f:
+            pickle.dump(self.data[key], f)
 
     def update(self):
         key = 0
         if key not in self.data:
             self.data[key] = {uid: [] for uid in self.model.schedule.get_agents()}
         data = self.data[key]
-        virtual_leader = self.model.virtual_leader
 
-        sff = self.model.sff["Follower"]
         for agent in self.model.schedule.agents:
             if agent.name.startswith("Follower"):
                 uid = agent.unique_id
-                d_to_leader = abs(sff[agent.pos[1], agent.pos[0]] - sff[virtual_leader.pos[1], virtual_leader.pos[0]])
+                d_to_leader = agent.leader_dist()
                 data[uid].append(d_to_leader)
         self.data[key] = data
 
@@ -121,17 +142,23 @@ class ExperimentDistanceToLeader(Experiment):
         key = 0
         data = self.data[key]
         fig, ax = plt.subplots(figsize=self.figsize)
+        x_pos = []
         for uid in data:
-            if len(data[uid]) < 51:
+            if len(data[uid]) < 1:
                 continue
-            x_pos = data[uid][50]
-            if x_pos == 0:
-                continue
-            ax.boxplot(data[uid], positions=[x_pos], showfliers=False)
-            plt.xlabel("Distance to leader at event 1")
-            plt.ylabel("Distance to leader")
-            ax.scatter(x_pos, data[uid][0])
-        ax.xaxis.set_major_formatter(plt.FormatStrFormatter('%.2f'))
+            x_pos.append((uid, np.mean(data[uid])))
+        x_pos = sorted(x_pos, key=lambda x: x[1])
+        pos_ctr = 1
+        for uid, pos in x_pos:
+            ax.boxplot(data[uid], positions=[pos_ctr], showfliers=False)
+            pos_ctr += 1
+        plt.xlabel("Ranked averaged distance to leader")
+        plt.ylabel("Distance to leader")
+        pos_ctr = 1
+        for uid, pos in x_pos:
+            ax.scatter(pos_ctr, data[uid][0])
+            pos_ctr += 1
+        # ax.xaxis.set_major_formatter(plt.FormatStrFormatter('%.2f'))
         if save or self.do_save:
             plt.savefig(self.graphs_location + "Boxplot.png")
             plt.savefig(self.graphs_location + "Boxplot.pdf")
@@ -169,6 +196,10 @@ class ExperimentDistanceToLeader(Experiment):
 
 
 class ExperimentGaps(Experiment):
+    def __init__(self, model):
+        super().__init__(model)
+        self.do_show = False
+        self.compatible_maps = ["gaps.txt", "gaps_back.txt"]
 
     def load(self):
         return {}
@@ -245,7 +276,7 @@ class ExperimentGaps(Experiment):
         fig, axs = plt.subplots(nrows=4, ncols=1, figsize=self.figsize, sharex="col")
         for i, array in enumerate(distances):
             axs[i].hist(array)
-        plt.xlabel("Distance to leader")
+        plt.xlabel("Distance to the paired agents at the front")
         if save or self.do_save:
             plt.savefig(self.graphs_location + ".png")
             plt.savefig(self.graphs_location + ".pdf")
@@ -258,8 +289,9 @@ class ExperimentGaps(Experiment):
 class ExperimentIncorrectOrientation(Experiment):
     def __init__(self, model):
         super().__init__(model)
-        self.do_save = True
-        self.do_show = True
+        self.compatible_maps = ["gaps.txt", "gaps_back.txt", "gaps_short.txt", "gaps_short_back.txt",
+                                "right_turn_short.txt", "right_turn_short_back.txt"]
+        self.do_show = False
 
     def incorrect_orientation(self, uid, cells):
         key3 = "incorrect_orientation"
@@ -277,11 +309,11 @@ class ExperimentIncorrectOrientation(Experiment):
     def incorrect_orientation_selected(self, uid, choice_pos):
         key = "incorrect_orientation_selected"
         key2 = "incorrect_orientation_distance"
-        test_length = 20
+        max_distance = 20
         if key not in self.data:
             self.data[key] = np.zeros_like(self.model.room)
         if key2 not in self.data:
-            self.data[key2] = np.zeros((3, test_length))
+            self.data[key2] = np.zeros((3, max_distance))
 
         key3 = "incorrect_orientation"
         data = self.data[key3]
@@ -301,9 +333,9 @@ class ExperimentIncorrectOrientation(Experiment):
     def load(self):
         key = "incorrect_orientation_selected"
         key2 = "incorrect_orientation_distance"
-        test_length = 20
+        max_distance = 20
         data = np.zeros_like(self.model.room)
-        data2 = np.zeros((3, test_length))
+        data2 = np.zeros((3, max_distance))
         if os.path.exists(self.data_location+"_selected.npy"):
             incorrect_orientation_ctr_map = np.load(self.data_location+"_selected.npy", allow_pickle=True)
             data += incorrect_orientation_ctr_map
@@ -339,6 +371,9 @@ class ExperimentIncorrectOrientation(Experiment):
         data = np.flip(data, axis=0)
         ax.set_title("Frequency of Incorrect Orientation Maneuvers")
         ax.imshow(data)
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+
         if save or self.do_save:
             plt.savefig(self.graphs_location + "Heatmap.png")
             plt.savefig(self.graphs_location + "Heatmap.pdf")
@@ -349,8 +384,16 @@ class ExperimentIncorrectOrientation(Experiment):
         fig, ax = plt.subplots(figsize=self.figsize)
         ax.set_xlabel("Distance to Leader")
         ax.set_ylabel("Penalization")
-        xticks = range(len(data2[1]))
-        ax.plot(xticks, data2[1] / data2[0])
+        trailing_end = 0
+        total = data2[1][1:]
+        for i in range(len(total)):
+            if total[i] < 10:
+                trailing_end = i
+                break
+        total = total[:trailing_end]
+        hits = data2[0][1:trailing_end+1]
+        xticks = range(1, len(total)+1)
+        ax.plot(xticks, total / hits)
         plt.xticks(xticks)
         if save or self.do_save:
             plt.savefig(self.graphs_location + "Penalization.png")
@@ -372,8 +415,7 @@ class ExperimentIncorrectOrientation(Experiment):
         hits = data2[0][1:trailing_end + 1]
         ax.set_xlabel("Distance to Leader")
         ax.set_ylabel("Ratio")
-        # ax.scatter(y=hits / total, x=xticks, label="Incorrect maneuvers", alpha=0.5, color='blue')
-        ax.plot(xticks, hits/total, label="Incorrect maneuvers")
+        ax.plot(xticks, hits/total, label="Incorrect m. out of all m.")
         plt.xticks(xticks)
         plt.legend()
 

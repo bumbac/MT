@@ -1,25 +1,16 @@
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-
 
 import mesa
 
-# from roommodel.visualization.server import server
 from roommodel.model import RoomModel
-from roommodel.utils.portrayal import agent_portrayal
 from roommodel.file_loader import FileLoader
 
 
-def visualize():
-    server.launch()
-
-
-def batch():
-    filename = "./maps/topology/gaps_short.txt"
+def batch(filename, n=10):
     filename = os.path.abspath(filename)
     fl = FileLoader(filename)
-    for i in range(1):
+    print("\t", filename)
+    for i in range(n):
         print(i)
         model = RoomModel(ks=3.0, ko=0.0, kd=0.0, leader_movement_duration=2, agent_movement_duration=3,
                           penalization_orientation=1.0, leader_front_location_switch=True,
@@ -27,16 +18,42 @@ def batch():
         model.run_model()
 
 
+def visualize(filename):
+    filename = os.path.abspath(filename)
+    fl = FileLoader(filename)
+    canvas = fl.get_canvas(1080)
+    model_params = {
+        "ks": mesa.visualization.Slider("Sensitivity to static potential kS", 3, 1.0, 10.0, 0.5),
+        "ko": mesa.visualization.Slider("Sensitivity to occupied cell kO", 0.0, 0.0, 1.0, 0.1),
+        "kd": mesa.visualization.Slider("Sensitivity to diagonal movement kD", 0.5, 0.0, 1.0, 0.1),
+        "leader_movement_duration": mesa.visualization.Slider("Movement duration for leader", 2, 2, 6, 1),
+        "agent_movement_duration": mesa.visualization.Slider("Movement duration for followers", 3, 2, 6, 1),
+        "penalization_orientation": mesa.visualization.Slider("Penalization for incorrect orientation", 1.0, 0.0, 1.0, 0.1),
+        "leader_front_location_switch": mesa.visualization.Checkbox("Switch for leader location at the front", False),
+        "fileloader": fl
+    }
+
+    server = mesa.visualization.ModularServer(
+        RoomModel,
+        [canvas],
+        "Room Model",
+        model_params,
+    )
+    server.port = 8521  # The default
+    server.launch()
+
+
 if __name__ == '__main__':
-    batch()
-    # visualize()
-    #
-    # filename = "./maps/topology/conflict.txt"
-    # filename = os.path.abspath(filename)
-    # fl = FileLoader(filename)
-    # canvas = fl.get_canvas()
-    # server = mesa.visualization.ModularServer(
-    #     RoomModel, [canvas], "Room Model SETUP", {"filename": filename}
-    # )
-    # server.port = 8521  # The default
-    # server.launch()
+    experiments1 = ["./maps/topology/gaps.txt",
+                    "./maps/topology/gaps_back.txt",
+
+                    "./maps/topology/gaps_short.txt",
+                    "./maps/topology/gaps_short_back.txt",
+
+                    "./maps/topology/right_turn_short.txt",
+                    "./maps/topology/right_turn_short_back.txt"
+
+]
+    for filename in experiments1:
+        batch(filename, 10)
+    # visualize(filename)

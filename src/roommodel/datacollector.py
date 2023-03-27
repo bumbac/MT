@@ -30,23 +30,26 @@ class RoomDataCollector(mesa.DataCollector):
         self.__name__ = "RoomDataCollector " + str(self.model.generate_uid())
         self.data = {}
         self.experiments = [
-            # ExperimentDistanceHeatmap(self.model),
-            # ExperimentDistanceToLeader(self.model),
-            # ExperimentGaps(self.model),
-            # ExperimentIncorrectOrientation(self.model)
+            ExperimentDistanceHeatmap(self.model),
+            ExperimentDistanceToLeader(self.model),
+            ExperimentGaps(self.model),
+            ExperimentIncorrectOrientation(self.model)
         ]
 
     def update(self):
         for experiment in self.experiments:
-            experiment.update()
+            if experiment.compatible():
+                experiment.update()
 
     def save(self):
         for experiment in self.experiments:
-            experiment.save()
+            if experiment.compatible():
+                experiment.save()
 
     def visualize(self):
         for experiment in self.experiments:
-            experiment.visualize()
+            if experiment.compatible():
+                experiment.visualize()
 
     def events(self, event):
         key = self.events.__name__
@@ -54,8 +57,7 @@ class RoomDataCollector(mesa.DataCollector):
             self.data[key] = {}
         data = self.data[key]
         step = self.model.schedule.steps
-        name = str(event)
-        data[step] = name
+        data[step] = str(event)
 
     def get_events(self):
         key = self.events.__name__
@@ -80,7 +82,6 @@ class RoomDataCollector(mesa.DataCollector):
         if experiment is None:
             return
         experiment.incorrect_orientation_selected(uid, choice_pos)
-
 
     def flush(self):
         self.model.logger.info(str(self.__name__)+" flushed.")
