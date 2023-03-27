@@ -75,7 +75,10 @@ class Agent(mesa.Agent):
     def leader_dist(self, start=None):
         if start is None:
             start = self.pos
-        sff = self.model.sff[self.model.leader.pos]
+        goal = self.model.gate
+        if self.model.leader.pos is not None:
+            goal = self.model.leader.pos
+        sff = self.model.sff[goal]
         return sff[start[1], start[0]]
 
     def reset(self):
@@ -124,6 +127,8 @@ class Agent(mesa.Agent):
         distance_to_leader = self.leader_dist()
         if self.name.startswith("Follower") and distance_to_leader > 0:
             discipline += 1 / distance_to_leader
+        ks = self.k[KS] * discipline
+
         # mixing P_s and P_o based od ko sensitivity
         P_s = {'top': {}, 'bottom_sum': 0}
         attraction_static = {}
@@ -140,7 +145,6 @@ class Agent(mesa.Agent):
         for pos in cells:
             offset_cell = pos[1] - self.pos[1] + 2, pos[0] - self.pos[0] + 2
             S = offset_sff_neighbourhood[offset_cell]
-            ks = self.k[KS] * discipline
             # self.model.logger.debug(str(discipline)+str(distance_to_leader)+str(S)+str(ks)+str(self.k[KS]))
             # O is 0 or 1
             Occupy = 0
@@ -174,7 +178,7 @@ class Agent(mesa.Agent):
             attraction (dict): xy coordinates(key): attraction(value)
 
         Returns:
-            (int, int): xy coordinates
+            Any: next cell xy coordinates or maneuver ((xy, orientation), (partner xy, partner orientation))
 
         """
         coords = list(attraction.keys())
@@ -188,7 +192,10 @@ class Agent(mesa.Agent):
         probabilities = probabilities / norm
         idx = np.random.choice(len(coords), p=probabilities)
 
-        return coords[idx]
+        choice_pos = coords[idx]
+        if self.partner is not None:
+            self.model.datacollector.incorrect_orientation_selected(self.unique_id, choice_pos)
+        return choice_pos
 
     def deterministic_choice(self, attraction):
         coords = list(attraction.keys())

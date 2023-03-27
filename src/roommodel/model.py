@@ -73,6 +73,7 @@ class RoomModel(mesa.Model):
             DEBUG 10
             NOTSET 0 """
         self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.CRITICAL)
 
     def initialize_agents(self):
         """Update OF and update internal states of agents."""
@@ -103,6 +104,9 @@ class RoomModel(mesa.Model):
             partner_cell = self.grid.grid[partner_position[0]][partner_position[1]][0]
             partner_agent = partner_cell.agent
 
+            # todo crashing
+            if partner_agent is None or leader_agent is None:
+                continue
             leader = DirectedPartnerAgent(leader_agent.unique_id, self)
             partner = DirectedPartnerAgent(partner_agent.unique_id, self)
 
@@ -141,6 +145,8 @@ class RoomModel(mesa.Model):
     def replace_agent(self, agent, new_agent):
         """Replaces agent with other agent in the schedule=, in the grid and update internal states."""
         agent_position = agent.pos
+        if agent_position is None:
+            return
         agent_cell = self.grid.grid[agent_position[0]][agent_position[1]][0]
         if agent is not None:
             self.grid.remove_agent(agent)
@@ -154,9 +160,10 @@ class RoomModel(mesa.Model):
     def step(self):
         """Execute one model step."""
         self.logger.info("---------------")
-        self.datacollector.distance_heatmap()
-        self.datacollector.distance_to_leader()
-        self.datacollector.gaps_between_agents()
+        self.datacollector.update()
+        # self.datacollector.distance_heatmap()
+        # self.datacollector.distance_to_leader()
+        # self.datacollector.gaps_between_agents()
         # always pair solitary agents if found
         self.form_pairs()
 
@@ -167,6 +174,8 @@ class RoomModel(mesa.Model):
         if self.running:
             self.schedule.step()
         else:
+            self.datacollector.save()
+            self.datacollector.visualize()
             data = self.datacollector.get_data()
             self.datacollector.flush()
 

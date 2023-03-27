@@ -6,10 +6,12 @@ import os
 matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
 
+from .experiment import *
 from .utils.constants import SFF_OBSTACLE, KS, KO, KD, GAMMA, OCCUPIED_CELL, EMPTY_CELL
 
 FIGSIZE = (20, 5)
-
+data_location = "./out/data/"
+graph_location = "./out/graphs/"
 
 def minmax_norm(arr):
     return (arr - min(arr))/(max(arr) - min(arr))
@@ -27,6 +29,22 @@ class RoomDataCollector(mesa.DataCollector):
         self.model = model
         self.__name__ = "RoomDataCollector " + str(self.model.generate_uid())
         self.data = {}
+        self.experiments = [
+            ExperimentDistanceHeatmap(self.model),
+            ExperimentDistanceToLeader(self.model)
+        ]
+
+    def update(self):
+        for experiment in self.experiments:
+            experiment.update()
+
+    def save(self):
+        for experiment in self.experiments:
+            experiment.save()
+
+    def visualize(self):
+        for experiment in self.experiments:
+            experiment.visualize()
 
     def events(self, event):
         key = self.events.__name__
@@ -36,24 +54,6 @@ class RoomDataCollector(mesa.DataCollector):
         step = self.model.schedule.steps
         name = str(event)
         data[step] = name
-
-    def distance_heatmap(self):
-        occupancy_grid = self.model.of
-        key = self.distance_heatmap.__name__
-        if key not in self.data:
-            self.data[key] = np.zeros_like(occupancy_grid)
-        data = self.data[key]
-        data += occupancy_grid == OCCUPIED_CELL
-        self.data[key] = data
-
-    def visualize_distance_heatmap(self):
-        key = self.distance_heatmap.__name__
-        data = self.data[key]
-        data = np.flip(data, axis=0)
-        plt.figure(figsize=(10, 20))
-        plt.imshow(data)
-        plt.show(block=False)
-        plt.pause(1)
 
     def distance_to_leader(self):
         key = self.distance_to_leader.__name__
@@ -69,6 +69,71 @@ class RoomDataCollector(mesa.DataCollector):
                 d_to_leader = abs(sff[agent.pos[1], agent.pos[0]] - sff[virtual_leader.pos[1], virtual_leader.pos[0]])
                 data[uid].append(d_to_leader)
         self.data[key] = data
+
+    def incorrect_orientation(self, uid, cells):
+        key = self.incorrect_orientation.__name__
+        if key not in self.data:
+            self.data[key] = {}
+        data = self.data[key]
+        if uid not in data:
+            data[uid] = {}
+        for choice in cells:
+            if choice not in data[uid]:
+                data[uid][choice] = []
+            data[uid][choice].append(cells[choice])
+
+    def incorrect_orientation_selected(self, uid, choice_pos):
+        key = self.incorrect_orientation_selected.__name__
+        key2 = "incorrect_orientation_distance"
+        if key not in self.data:
+            self.data[key] = np.zeros_like(self.model.room)
+        if key2 not in self.data:
+            self.data[key2] = np.zeros((3, 20))
+
+        source_key = self.incorrect_orientation.__name__
+        data = self.data[source_key]
+        if uid in data:
+            for choice in data[uid]:
+                penalization, distance = data[uid][choice][-1]
+                leader, partner = choice_pos
+                leader_pos, _ = leader
+                partner_pos, _ = partner
+                if choice_pos == choice:
+                    self.data[key2][0, round(distance)] += 1
+                    self.data[key2][1, round(distance)] += penalization
+                    self.data[key][leader_pos[1], leader_pos[0]] += 1
+                    self.data[key][partner_pos[1], partner_pos[0]] += 1
+            self.data[key2][2, round(distance)] += 1
+
+    def save_incorrect_orientation(self):
+        key = self.incorrect_orientation_selected.__name__
+        key2 = "incorrect_orientation_distance"
+        data = self.data[key]
+        data2 = self.data[key2]
+        if os.path.exists(data_location+"incorrect_orientation.npy"):
+            incorrect_orientation_ctr_map = np.load(data_location+"incorrect_orientation.npy", allow_pickle=True)
+            data += incorrect_orientation_ctr_map
+        if os.path.exists(data_location+"incorrect_orientation_distance.npy"):
+            incorrect_orientation_distance = np.load(data_location+"incorrect_orientation_distance.npy", allow_pickle=True)
+            data2 += incorrect_orientation_distance
+
+        visualize = False
+        if visualize:
+            plt.figure(figsize=FIGSIZE)
+            plt.imshow(data)
+            plt.show(block=False)
+            plt.pause(0.1)
+            plt.figure(figsize=FIGSIZE)
+            plt.plot(data2[0]/data2[2])
+            plt.show(block=False)
+            plt.pause(0.1)
+            plt.figure(figsize=FIGSIZE)
+            plt.plot(data2[1]/data2[0])
+            plt.show(block=False)
+            plt.pause(0.1)
+
+        np.save(data_location+"incorrect_orientation.npy", data)
+        np.save(data_location+"incorrect_orientation_distance.npy", data2)
 
     def gaps_between_agents(self):
         key = self.gaps_between_agents.__name__
@@ -115,8 +180,8 @@ class RoomDataCollector(mesa.DataCollector):
             for item in data[uid]:
                 leader, partner, ctr = item
                 leader_starts[uid].append((leader[0]+partner[0])/2)
-        if os.path.exists("gaps.npy"):
-            distances = list(np.load("gaps.npy", allow_pickle=True))
+        if os.path.exists(data_location+"gaps.npy"):
+            distances = list(np.load(data_location+"gaps.npy", allow_pickle=True))
             distances = [list(a) for a in distances]
         else:
             distances = [[] for _ in range(n_dist)]
@@ -131,12 +196,12 @@ class RoomDataCollector(mesa.DataCollector):
             low_p = p[0]
             for j, pp in enumerate(p):
                 distances[j].append(pp - low_p)
-        np.save("gaps.npy", distances)
+        np.save(data_location+"gaps.npy", distances)
 
     def boxplot_distance_to_leader(self):
         key = self.distance_to_leader.__name__
         data = self.data[key]
-        fig, ax = plt.subplots(figsize=(10, 20))
+        fig, ax = plt.subplots(figsize=FIGSIZE)
         for uid in data:
             if len(data[uid]) < 51:
                 continue
@@ -153,7 +218,7 @@ class RoomDataCollector(mesa.DataCollector):
         data = self.data[key]
         del data[self.model.leader.unique_id]
         del data[self.model.virtual_leader.unique_id]
-        plt.figure(figsize=(10, 20))
+        plt.figure(figsize=FIGSIZE)
         y = []
         low_limit = 0
         hi_limit = -1
@@ -170,36 +235,17 @@ class RoomDataCollector(mesa.DataCollector):
         for xtick in [step for step in self.data[self.events.__name__]]:
             plt.axvline(x=xtick)
         plt.show(block=False)
-        plt.pause(1)
-
-    def visual_ranking_dist_to_leader(self):
-        key = self.distance_to_leader.__name__
-        data = self.data[key]
-        plt.figure(figsize=FIGSIZE)
-        y = []
-        low_limit = 0
-        hi_limit = -1
-        for uid in data:
-            y.append(len(data[uid]))
-        for uid in data:
-            data[uid] = np.array(data[uid][low_limit:hi_limit])
-        y_max = np.max(y)
-        # for i in range(y_max):
-            # if i < len(data[uid])
-        cm = plt.get_cmap("jet")
-        y = [cm(a) for a in y]
-        for uid in data:
-            data[uid] = np.array(data[uid])
-            plt.plot(data[uid], c=y.pop())
-        plt.show(block=False)
+        plt.pause(0.1)
 
     def get_data(self):
-        # self.boxplot_distance_to_leader()
-        # self.visual_distance_to_leader()
-        # self.visualize_distance_heatmap()
-        self.visualize_gaps_between_agents()
-        return self.data
+        pass
+    #     # self.boxplot_distance_to_leader()
+    #     # self.visual_distance_to_leader()
+    #     # self.visualize_distance_heatmap()
+    #     # self.visualize_gaps_between_agents()
+    #     self.save_incorrect_orientation()
+    #     return self.data
 
     def flush(self):
-        self.model.logger.info(self.__name__, "flushed.")
+        self.model.logger.info(str(self.__name__)+" flushed.")
         self.data = {}

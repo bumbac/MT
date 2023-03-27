@@ -104,27 +104,33 @@ class DirectedPartnerAgent(DirectedAgent):
         _, top_key = top_maneuver
         top_orientation = top_key[0][1]
         # orientation penalization
-        penalization = {}
+        incorrect_maneuvers = {}
+        correct_orientation = 0
+        distance_to_leader = min(self.leader_dist(), self.partner.leader_dist())
+        if distance_to_leader > 0:
+            incorrect_orientation_penalization = ((1/distance_to_leader) ** 0.5) * self.penalization_orientation
+        else:
+            incorrect_orientation_penalization = correct_orientation
         for key in attraction:
             _, next_orientation = key[0]
             # maneuver results in correct orientation, do not penalize
-            if next_orientation == top_orientation:
-                penalization[key] = 0
-            else:
-                distance_to_leader = min(self.leader_dist(),
-                                         self.partner.leader_dist())
+            penalization = correct_orientation
+            if next_orientation != top_orientation:
                 # maneuver results in incorrect orientation, penalize
                 # smalled distance_to_leader results in higher penalization value
                 # higher penalization value makes the maneuver less probable
-                if distance_to_leader > 0:
-                    penalization[key] = ((1/distance_to_leader) ** 0.5) * self.penalization_orientation
-        # apply penalization to each maneuver
-        for key in penalization:
-            attraction[key] = attraction[key] * (1 - penalization[key])
+                penalization = incorrect_orientation_penalization
+                incorrect_maneuvers[key] = (penalization, distance_to_leader)
+            # apply penalization to each maneuver
+            attraction[key] = attraction[key] * (1 - penalization)
+
         # normalize to make probability
         normalize = sum(attraction.values())
         for key in attraction:
             attraction[key] /= normalize
+
+        if distance_to_leader > 0:
+            self.model.datacollector.incorrect_orientation(self.unique_id, incorrect_maneuvers)
         return attraction
 
     def maneuver_out_of_bounds(self, maneuver):
