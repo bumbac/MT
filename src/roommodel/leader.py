@@ -18,16 +18,11 @@ class LeaderAgent(Agent):
         self.name = "Leader: " + str(self.unique_id)
         self.nominal_movement_duration = self.model.leader_movement_duration
         self.movement_duration = self.nominal_movement_duration
-        self.k[KS] = self.k[KS] * 2
 
     def step(self):
         """Stochastically selects next step based on SFF of current goal."""
         self.reset()
-        distance, pos = self.most_distant()
-        if distance == 0 or self.model.leader_front_location_switch:
-            sff = self.model.sff["Follower"]
-        else:
-            sff = self.model.sff_compute([pos, pos])
+        sff = self.model.sff["Leader"]
         self.select_cell(sff)
 
     def middle_crowd(self):
@@ -41,7 +36,7 @@ class LeaderAgent(Agent):
         virtual_leader_pos = self.model.virtual_leader.pos
         for agent in self.model.schedule.agents:
             # incorrect measure
-            d = self.path_dist(virtual_leader_pos, agent.pos)
+            d = self.dist(virtual_leader_pos, agent.pos)
             distances.append((d, agent.pos))
         distances = sorted(distances, key=lambda x: x[0], reverse=True)
         median = len(distances) // 2
@@ -66,7 +61,7 @@ class LeaderAgent(Agent):
         for y, x in np.argwhere(occupancy_grid == OCCUPIED_CELL):
             if (x, y) == self.pos:
                 continue
-            distances.append((self.path_dist(virtual_leader_pos, (x, y)), (x, y)))
+            distances.append((self.dist(virtual_leader_pos, (x, y)), (x, y)))
         distances = sorted(distances, key=lambda dist_pos: dist_pos[0], reverse=True)
         if len(distances) > 0:
             return distances[0]
@@ -84,18 +79,23 @@ class LeaderAgent(Agent):
         self.nominal_movement_duration = 0
         d, pos = self.most_distant()
         if self.model.leader_front_location_switch:
+            # at the front
+            # length of queue of pairs is approximately half of number of agents
             if d < (len(self.model.schedule.agents) // 2):
+                # the queue is short, keep normal speed
                 d = 1
             else:
+                # the queue is too long, move slower
                 d = 2
         else:
+            # at the back of the queue
             if d > 5:
+                # the most distant agent is too far, increase speed
                 d = 0
             else:
+                # keep normal speed
                 d = 1
-        if self.next_cell is not None:
-            if self.next_cell.agent is None:
-                self.movement_duration = round(self.nominal_movement_duration * d)
+        self.movement_duration = round(self.nominal_movement_duration * d)
 
 
 class VirtualLeader(LeaderAgent):
@@ -106,9 +106,7 @@ class VirtualLeader(LeaderAgent):
     """
     def __init__(self, uid, model):
         super().__init__(uid, model)
-        self.color = "w"
         self.name = "Virtual " + self.name
-        self.data = None
         self.k = {KS: 10,
                   KO: 0,
                   KD: 0,
@@ -122,7 +120,7 @@ class VirtualLeader(LeaderAgent):
         """
         self.reset()
         cells = self.model.grid.get_neighborhood(self.pos, include_center=True, moore=True)
-        sff = self.model.sff["Leader"]
+        sff = self.model.sff["Virtual leader"]
         attraction = self.attraction(sff, cells)
         coords = self.deterministic_choice(attraction)
         cell = self.model.grid[coords[0]][coords[1]][0]
@@ -133,7 +131,7 @@ class VirtualLeader(LeaderAgent):
 
     def advance(self):
         """Updates SFF with his position as goal."""
-        self.model.sff_update([self.pos, self.pos], "Follower")
+        # self.model.sff_update([self.pos, self.pos], "Follower")
 
     def adapt_speed(self):
         """Based on the distance to followers (de)accelerate.
@@ -146,9 +144,9 @@ class VirtualLeader(LeaderAgent):
         d, pos = self.most_distant()
 
         if d < (len(self.model.schedule.agents) // 2):
+            # keep normal speed
             d = 1
         else:
+            # half the normal speed = twice the movement duration
             d = 2
-        if self.next_cell is not None:
-            if self.next_cell.agent is None:
-                self.movement_duration = round(self.nominal_movement_duration * d)
+        self.movement_duration = round(self.nominal_movement_duration * d)

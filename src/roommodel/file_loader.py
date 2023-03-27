@@ -8,9 +8,9 @@ import mesa
 from .cell import Cell
 from .leader import LeaderAgent, VirtualLeader
 from .directed import DirectedAgent
-from .goal import GateGoal, AreaGoal, LocationGoal
+from .goal import GateGoal, AreaGoal, LocationGoal, GuardGoal
 from .utils.constants import MAP_SYMBOLS, OBSTACLE, LEADER, FOLLOWER, DIRECTED, PAIR_DIRECTED, EXIT_GOAL_SYMBOL,\
-    AREA_GOAL_SYMBOL, LOCATION_GOAL_SYMBOL, ORIENTATION, GATE, EMPTY
+    AREA_GOAL_SYMBOL, LOCATION_GOAL_SYMBOL, GUARD_GOAL_SYMBOL, ORIENTATION, GATE, EMPTY
 from .utils.room import compute_static_field
 from .utils.portrayal import agent_portrayal
 
@@ -79,6 +79,11 @@ class FileLoader:
                 target = g[3]
                 wait_time = g[2]
                 goals_list.append(LocationGoal(model, *lt, wait_time, target))
+            if goal_symbol == GUARD_GOAL_SYMBOL:
+                lt = g[1]
+                target = g[3]
+                wait_time = g[2]
+                goals_list.append(GuardGoal(model, *lt, wait_time, target))
         return goals_list
 
     def get_canvas(self, resolution):
@@ -87,6 +92,8 @@ class FileLoader:
         canvas_height = CELL_SIZE*self.height
         return mesa.visualization.CanvasGrid(agent_portrayal, self.width, self.height, canvas_width, canvas_height)
 
+    def get_filename(self):
+        return self.filename
     def load_topology(self):
         if self.filename is None:
             raise FileNotFoundError("Filename for map loading cannot be None.")
@@ -131,7 +138,12 @@ class FileLoader:
             if goal_symbol == LOCATION_GOAL_SYMBOL:
                 wait_time = tokens[3]
                 leader_position = tokens[4]
-                location_goal = [LOCATION_GOAL_SYMBOL, [lt], wait_time,leader_position, target]
+                location_goal = [LOCATION_GOAL_SYMBOL, [lt], wait_time, leader_position, target]
+                self.goals.append(location_goal)
+            if goal_symbol == GUARD_GOAL_SYMBOL:
+                wait_time = tokens[3]
+                leader_position = tokens[4]
+                location_goal = [GUARD_GOAL_SYMBOL, [lt], wait_time,leader_position, target]
                 self.goals.append(location_goal)
 
     def place_agents(self, model):

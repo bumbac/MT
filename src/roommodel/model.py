@@ -1,4 +1,7 @@
 import copy
+import logging
+import os
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 import numpy as np
 import mesa
@@ -35,9 +38,9 @@ class RoomModel(mesa.Model):
     """
 
     def __init__(self, ks, ko, kd, leader_movement_duration, agent_movement_duration, penalization_orientation,
-                 leader_front_location_switch, filename):
+                 leader_front_location_switch, fileloader):
         super().__init__()
-        self.file_loader = FileLoader(filename)
+        self.file_loader = fileloader
         self.ks = ks
         self.ko = ko
         self.kd = kd
@@ -45,7 +48,7 @@ class RoomModel(mesa.Model):
         self.agent_movement_duration = agent_movement_duration
         self.penalization_orientation = penalization_orientation
         self.leader_front_location_switch = leader_front_location_switch
-        self.filename = filename
+        self.filename = self.file_loader.get_filename()
         self.dimensions = self.file_loader.dimensions()
         self.schedule = SequentialActivation(self)
         self.grid = mesa.space.MultiGrid(*self.dimensions, torus=False)
@@ -63,6 +66,14 @@ class RoomModel(mesa.Model):
         # update OF and update internal states of agents
         self.initialize_agents()
         self.datacollector = RoomDataCollector(self)
+        """ CRITICAL 50
+            ERROR 40
+            WARNING 30
+            INFO 20
+            DEBUG 10
+            NOTSET 0 """
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.CRITICAL)
 
     def initialize_agents(self):
         """Update OF and update internal states of agents."""
@@ -93,6 +104,9 @@ class RoomModel(mesa.Model):
             partner_cell = self.grid.grid[partner_position[0]][partner_position[1]][0]
             partner_agent = partner_cell.agent
 
+            # todo crashing
+            if partner_agent is None or leader_agent is None:
+                continue
             leader = DirectedPartnerAgent(leader_agent.unique_id, self)
             partner = DirectedPartnerAgent(partner_agent.unique_id, self)
 
@@ -129,13 +143,15 @@ class RoomModel(mesa.Model):
                 self.replace_agent(agent, new_agent)
 
     def replace_agent(self, agent, new_agent):
-        """Replaces solitary agent with paired agent in the schedule, in the grid and update internal states."""
+        """Replaces agent with other agent in the schedule=, in the grid and update internal states."""
         agent_position = agent.pos
+        if agent_position is None:
+            return
         agent_cell = self.grid.grid[agent_position[0]][agent_position[1]][0]
-        if agent:
+        if agent is not None:
             self.grid.remove_agent(agent)
             self.schedule.remove_agent(agent)
-        if new_agent:
+        if new_agent is not None:
             self.schedule.add(new_agent)
             agent_cell.agent = new_agent
             new_agent.cell = agent_cell
@@ -143,20 +159,23 @@ class RoomModel(mesa.Model):
 
     def step(self):
         """Execute one model step."""
-        print("-----------")
-        self.datacollector.distance_heatmap()
-        self.datacollector.dist_to_leader()
+        self.logger.info("---------------")
+        self.datacollector.update()
+        # self.datacollector.distance_heatmap()
+        # self.datacollector.distance_to_leader()
+        # self.datacollector.gaps_between_agents()
         # always pair solitary agents if found
         self.form_pairs()
 
         # check current goals
         if self.current_goal().reached_checkpoint():
             # update for new goal
-            if self.checkpoint():
-                self.sff_update(self.current_goal().area, "Leader")
+            self.checkpoint()
         if self.running:
             self.schedule.step()
         else:
+            self.datacollector.save()
+            self.datacollector.visualize()
             data = self.datacollector.get_data()
             self.datacollector.flush()
 
@@ -172,13 +191,12 @@ class RoomModel(mesa.Model):
     def checkpoint(self):
         """Current goal is reached and assigns a new one."""
         cp = self.goals.pop(0)
-        print("Checkpoint", cp, "finished.")
-        print("Checkpoint", cp, "finished.")
-        print("Checkpoint", cp, "finished.")
+        self.datacollector.events(cp)
+        self.logger.info("Checkpoint "+str(cp)+" finished.")
         if len(self.goals) > 0:
             return True
         else:
-            print("Finished evacuation.")
+            self.logger.info("Finished evacuation.")
             self.running = False
             return False
 
