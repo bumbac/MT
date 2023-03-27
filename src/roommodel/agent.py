@@ -121,12 +121,13 @@ class Agent(mesa.Agent):
         ks = self.k[KS]
         ko = self.k[KO]
         kd = self.k[KD]
-        discipline = 1
 
         # discipline calculation based on distance to leader
+        discipline = 1
         distance_to_leader = self.leader_dist()
         if self.name.startswith("Follower") and distance_to_leader > 0:
             discipline += 1 / distance_to_leader
+
         ks = self.k[KS] * discipline
 
         # mixing P_s and P_o based od ko sensitivity
@@ -141,7 +142,7 @@ class Agent(mesa.Agent):
         for pos in cells:
             offset_cell = pos[1] - self.pos[1] + 2, pos[0] - self.pos[0] + 2
             offset_sff_neighbourhood[offset_cell] = sff[pos[1], pos[0]]
-        offset_sff_neighbourhood -= offset_sff_neighbourhood[2,2]
+        offset_sff_neighbourhood -= offset_sff_neighbourhood[2, 2]
         for pos in cells:
             offset_cell = pos[1] - self.pos[1] + 2, pos[0] - self.pos[0] + 2
             S = offset_sff_neighbourhood[offset_cell]

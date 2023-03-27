@@ -51,7 +51,6 @@ class Experiment:
         self.do_show = False
         self.figsize = FIGSIZE4_3
 
-
     def update(self):
         pass
 
@@ -101,7 +100,7 @@ class ExperimentDistanceHeatmap(Experiment):
 class ExperimentDistanceToLeader(Experiment):
     def __init__(self, model):
         super().__init__(model)
-        self.do_show = True
+        self.do_show = False
 
     def update(self):
         key = 0
@@ -117,12 +116,6 @@ class ExperimentDistanceToLeader(Experiment):
                 d_to_leader = abs(sff[agent.pos[1], agent.pos[0]] - sff[virtual_leader.pos[1], virtual_leader.pos[0]])
                 data[uid].append(d_to_leader)
         self.data[key] = data
-
-    def load(self):
-        return {}
-
-    def save(self):
-        pass
 
     def visualize(self, save=True, show=False):
         key = 0
@@ -163,8 +156,6 @@ class ExperimentDistanceToLeader(Experiment):
         for uid in data:
             data[uid] = np.array(data[uid])
             ax.plot(data[uid], c=y.pop())
-        # for xtick in [step for step in self.data[self.events.__name__]]:
-        #     plt.axvline(x=xtick)
         plt.xlabel("Step of model")
         plt.ylabel("Distance to leader")
         plt.title("Rolling average, window size 2")
@@ -267,8 +258,8 @@ class ExperimentGaps(Experiment):
 class ExperimentIncorrectOrientation(Experiment):
     def __init__(self, model):
         super().__init__(model)
-        self.do_save = False
-        self.do_show = False
+        self.do_save = True
+        self.do_show = True
 
     def incorrect_orientation(self, uid, cells):
         key3 = "incorrect_orientation"
@@ -348,7 +339,6 @@ class ExperimentIncorrectOrientation(Experiment):
         data = np.flip(data, axis=0)
         ax.set_title("Frequency of Incorrect Orientation Maneuvers")
         ax.imshow(data)
-        show = save = True
         if save or self.do_save:
             plt.savefig(self.graphs_location + "Heatmap.png")
             plt.savefig(self.graphs_location + "Heatmap.pdf")
@@ -392,3 +382,4 @@ class ExperimentIncorrectOrientation(Experiment):
         if show or self.do_show:
             plt.show(block=False)
             plt.pause(2)
+

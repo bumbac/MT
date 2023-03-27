@@ -33,7 +33,7 @@ class RoomDataCollector(mesa.DataCollector):
             # ExperimentDistanceHeatmap(self.model),
             # ExperimentDistanceToLeader(self.model),
             # ExperimentGaps(self.model),
-            ExperimentIncorrectOrientation(self.model)
+            # ExperimentIncorrectOrientation(self.model)
         ]
 
     def update(self):
@@ -81,13 +81,6 @@ class RoomDataCollector(mesa.DataCollector):
             return
         experiment.incorrect_orientation_selected(uid, choice_pos)
 
-    def get_data(self):
-        pass
-    #     # self.boxplot_distance_to_leader()
-    #     # self.visual_distance_to_leader()
-    #     # self.visualize_distance_heatmap()
-    #     self.save_incorrect_orientation()
-    #     return self.data
 
     def flush(self):
         self.model.logger.info(str(self.__name__)+" flushed.")

@@ -159,11 +159,7 @@ class RoomModel(mesa.Model):
 
     def step(self):
         """Execute one model step."""
-        self.logger.info("---------------")
         self.datacollector.update()
-        # self.datacollector.distance_heatmap()
-        # self.datacollector.distance_to_leader()
-        # self.datacollector.gaps_between_agents()
         # always pair solitary agents if found
         self.form_pairs()
 
@@ -176,7 +172,6 @@ class RoomModel(mesa.Model):
         else:
             self.datacollector.save()
             self.datacollector.visualize()
-            data = self.datacollector.get_data()
             self.datacollector.flush()
 
     def current_goal(self) -> Goal:
