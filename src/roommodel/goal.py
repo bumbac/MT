@@ -83,7 +83,8 @@ class Goal:
 
 
 class GateGoal(Goal):
-    def __init__(self, model: mesa.model, gate: (int, int), target="Follower"):
+    def __init__(self, model: mesa.model,
+                 gate: (int, int), target="Follower"):
         super().__init__(model)
         self.area = [gate, gate]
         self.target = target
@@ -96,7 +97,8 @@ class GateGoal(Goal):
 
 
 class LocationGoal(Goal):
-    def __init__(self, model: mesa.model, location: (int, int), wait_time=10, leader_position="Back", target="Follower"):
+    def __init__(self, model: mesa.model,
+                 location: (int, int), wait_time=10, leader_position="Back", target="Follower"):
         super().__init__(model)
         self.area = [location, location]
         self.target = target
@@ -134,7 +136,8 @@ class LocationGoal(Goal):
 
 
 class GuardGoal(Goal):
-    def __init__(self, model: mesa.model, location: (int, int), wait_time=10, leader_position="Back", target="Follower"):
+    def __init__(self, model: mesa.model,
+                 location: (int, int), wait_time=10, leader_position="Back", target="Follower"):
         super().__init__(model)
         self.area = [location, location]
         self.target = target
@@ -177,7 +180,8 @@ class GuardGoal(Goal):
 
 
 class AreaGoal(Goal):
-    def __init__(self, model: mesa.model, area: [(int, int), (int, int)], target="Follower"):
+    def __init__(self, model: mesa.model,
+                 area: [(int, int), (int, int)], target="Follower"):
         super().__init__(model)
         self.area = area
         self.target = target

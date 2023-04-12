@@ -99,9 +99,9 @@ class RoomModel(mesa.Model):
             leader_position, partner_position = position
 
             # find original solitary agents
-            leader_cell = self.grid.grid[leader_position[0]][leader_position[1]][0]
+            leader_cell = self.grid._grid[leader_position[0]][leader_position[1]][0]
             leader_agent = leader_cell.agent
-            partner_cell = self.grid.grid[partner_position[0]][partner_position[1]][0]
+            partner_cell = self.grid._grid[partner_position[0]][partner_position[1]][0]
             partner_agent = partner_cell.agent
 
             # todo crashing
@@ -147,7 +147,7 @@ class RoomModel(mesa.Model):
         agent_position = agent.pos
         if agent_position is None:
             return
-        agent_cell = self.grid.grid[agent_position[0]][agent_position[1]][0]
+        agent_cell = self.grid._grid[agent_position[0]][agent_position[1]][0]
         if agent is not None:
             self.grid.remove_agent(agent)
             self.schedule.remove_agent(agent)
@@ -212,7 +212,7 @@ class RoomModel(mesa.Model):
         if color_focus in self.sff:
             normalized_color = normalize_grid(self.sff[color_focus])
             # do not use schedule.cells because all cells need to be colored
-            for row in self.grid.grid:
+            for row in self.grid._grid:
                 for agents in row:
                     cell = agents[0]
                     np_coords = cell.coords[1], cell.coords[0]

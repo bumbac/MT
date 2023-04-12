@@ -49,11 +49,11 @@ class DirectedPartnerAgent(DirectedAgent):
         leader, partner = self.stochastic_choice(attraction)
         coords, orientation = leader
         p_coords, p_orientation = partner
-        leader_cell = self.model.grid.grid[coords[0]][coords[1]][0]
+        leader_cell = self.model.grid._grid[coords[0]][coords[1]][0]
         self.next_cell = leader_cell
         self.next_orientation = orientation
         leader_cell.enter(self)
-        partner_cell = self.model.grid.grid[p_coords[0]][p_coords[1]][0]
+        partner_cell = self.model.grid._grid[p_coords[0]][p_coords[1]][0]
         self.partner.next_cell = partner_cell
         self.partner.next_orientation = p_orientation
         partner_cell.enter(self.partner)
@@ -245,6 +245,9 @@ class DirectedPartnerAgent(DirectedAgent):
         coords = None
         if not leader:
             leader = self.pos
+            if leader is None:
+                print("Fallback, partner coordination error.")
+                return [0, 0]
         if self.orientation == ORIENTATION.NORTH:
             coords = leader[0] + 1, leader[1]
         if self.orientation == ORIENTATION.SOUTH:

@@ -32,8 +32,9 @@ class RoomDataCollector(mesa.DataCollector):
         self.experiments = [
             ExperimentDistanceHeatmap(self.model),
             ExperimentDistanceToLeader(self.model),
-            ExperimentGaps(self.model),
-            ExperimentIncorrectOrientation(self.model)
+            ExperimentIncorrectOrientation(self.model),
+            ExperimentFlow(self.model)
+            # ExperimentGaps(self.model),
         ]
 
     def update(self):
@@ -47,6 +48,7 @@ class RoomDataCollector(mesa.DataCollector):
                 experiment.save()
 
     def visualize(self):
+        return
         for experiment in self.experiments:
             if experiment.compatible():
                 experiment.visualize()

@@ -1,23 +1,25 @@
+import io
 import os
 
 import mesa
 import numpy as np
 import pandas as pd
 import pickle
-
 import matplotlib
 
-matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+import ffmpeg
 
 from .utils.constants import SFF_OBSTACLE, KS, KO, KD, GAMMA, OCCUPIED_CELL, EMPTY_CELL
-
 
 FIGSIZESQUARE = (8, 8)
 FIGSIZEWIDE = (20, 5)
 FIGSIZE4_3 = (8, 6)
 
 location = "./out/"
+matplotlib.use('tkagg')
 
 
 def minmax_norm(arr):
@@ -38,7 +40,9 @@ class Experiment:
         self.graphs_location = self.location + "/graphs/"
         if not os.path.isdir(self.location):
             os.mkdir(self.location[2:])
+        if not os.path.isdir(self.data_location):
             os.mkdir(self.data_location[:-1])
+        if not os.path.isdir(self.graphs_location):
             os.mkdir(self.graphs_location[:-1])
         if name is not None:
             self.name = name
@@ -113,16 +117,19 @@ class ExperimentDistanceToLeader(Experiment):
         self.do_show = False
         self.compatible_maps = ["gaps.txt", "gaps_back.txt", "gaps_short.txt", "right_turn_short.txt"]
 
+    def compatible(self):
+        return True
+
     def load(self):
-        if os.path.exists(self.data_location+".dat"):
-            with open(self.data_location+".dat", "rb") as f:
+        if os.path.exists(self.data_location + ".dat"):
+            with open(self.data_location + ".dat", "rb") as f:
                 return pickle.load(f)
         else:
             return {}
 
     def save(self):
         key = 0
-        with open(self.data_location+".dat", "wb") as f:
+        with open(self.data_location + ".dat", "wb") as f:
             pickle.dump(self.data[key], f)
 
     def update(self):
@@ -138,7 +145,7 @@ class ExperimentDistanceToLeader(Experiment):
                 data[uid].append(d_to_leader)
         self.data[key] = data
 
-    def visualize(self, save=True, show=False):
+    def visualize(self, save=False, show=False):
         key = 0
         data = self.data[key]
         fig, ax = plt.subplots(figsize=self.figsize)
@@ -198,6 +205,7 @@ class ExperimentDistanceToLeader(Experiment):
 class ExperimentGaps(Experiment):
     def __init__(self, model):
         super().__init__(model)
+        self.do_save = True
         self.do_show = False
         self.compatible_maps = ["gaps.txt", "gaps_back.txt"]
 
@@ -244,7 +252,7 @@ class ExperimentGaps(Experiment):
                 leader_ctr.append(data[uid][0][2])
         leader_starts = {uid: [] for uid in leader_uids}
         n_dist = len(leader_starts)
-        test_length = 20
+        test_length = 100
         for uid in leader_uids:
             for item in data[uid]:
                 leader, partner, ctr = item
@@ -267,7 +275,7 @@ class ExperimentGaps(Experiment):
                 distances[j].append(pp - low_p)
         return distances
 
-    def visualize(self, save=True, show=False):
+    def visualize(self, save=False, show=False):
         distances = self.finalize()
         if self.do_save:
             with open(self.data_location + ".dat", "wb") as f:
@@ -293,6 +301,9 @@ class ExperimentIncorrectOrientation(Experiment):
                                 "right_turn_short.txt", "right_turn_short_back.txt"]
         self.do_show = False
 
+    def compatible(self):
+        return True
+
     def incorrect_orientation(self, uid, cells):
         key3 = "incorrect_orientation"
         if key3 not in self.data:
@@ -309,7 +320,7 @@ class ExperimentIncorrectOrientation(Experiment):
     def incorrect_orientation_selected(self, uid, choice_pos):
         key = "incorrect_orientation_selected"
         key2 = "incorrect_orientation_distance"
-        max_distance = 20
+        max_distance = 100
         if key not in self.data:
             self.data[key] = np.zeros_like(self.model.room)
         if key2 not in self.data:
@@ -333,14 +344,14 @@ class ExperimentIncorrectOrientation(Experiment):
     def load(self):
         key = "incorrect_orientation_selected"
         key2 = "incorrect_orientation_distance"
-        max_distance = 20
+        max_distance = 50
         data = np.zeros_like(self.model.room)
         data2 = np.zeros((3, max_distance))
-        if os.path.exists(self.data_location+"_selected.npy"):
-            incorrect_orientation_ctr_map = np.load(self.data_location+"_selected.npy", allow_pickle=True)
+        if os.path.exists(self.data_location + "_selected.npy"):
+            incorrect_orientation_ctr_map = np.load(self.data_location + "_selected.npy", allow_pickle=True)
             data += incorrect_orientation_ctr_map
-        if os.path.exists(self.data_location+"_distance.npy"):
-            incorrect_orientation_distance = np.load(self.data_location+"_distance.npy", allow_pickle=True)
+        if os.path.exists(self.data_location + "_distance.npy"):
+            incorrect_orientation_distance = np.load(self.data_location + "_distance.npy", allow_pickle=True)
             data2 += incorrect_orientation_distance
         d = {key: data,
              key2: data2}
@@ -351,15 +362,8 @@ class ExperimentIncorrectOrientation(Experiment):
         key2 = "incorrect_orientation_distance"
         data = self.data[key]
         data2 = self.data[key2]
-        if os.path.exists(self.data_location+"_selected.npy"):
-            incorrect_orientation_ctr_map = np.load(self.data_location+"_selected.npy", allow_pickle=True)
-            data += incorrect_orientation_ctr_map
-        if os.path.exists(self.data_location+"_distance.npy"):
-            incorrect_orientation_distance = np.load(self.data_location+"_distance.npy", allow_pickle=True)
-            data2 += incorrect_orientation_distance
-
-        np.save(self.data_location+"_selected.npy", data)
-        np.save(self.data_location+"_distance.npy", data2)
+        np.save(self.data_location + "_selected.npy", data)
+        np.save(self.data_location + "_distance.npy", data2)
 
     def visualize(self, save=False, show=False):
         key = "incorrect_orientation_selected"
@@ -391,8 +395,8 @@ class ExperimentIncorrectOrientation(Experiment):
                 trailing_end = i
                 break
         total = total[:trailing_end]
-        hits = data2[0][1:trailing_end+1]
-        xticks = range(1, len(total)+1)
+        hits = data2[0][1:trailing_end + 1]
+        xticks = range(1, len(total) + 1)
         ax.plot(xticks, total / hits)
         plt.xticks(xticks)
         if save or self.do_save:
@@ -415,7 +419,7 @@ class ExperimentIncorrectOrientation(Experiment):
         hits = data2[0][1:trailing_end + 1]
         ax.set_xlabel("Distance to Leader")
         ax.set_ylabel("Ratio")
-        ax.plot(xticks, hits/total, label="Incorrect m. out of all m.")
+        ax.plot(xticks, hits / total, label="Incorrect m. out of all m.")
         plt.xticks(xticks)
         plt.legend()
 
@@ -424,4 +428,83 @@ class ExperimentIncorrectOrientation(Experiment):
         if show or self.do_show:
             plt.show(block=False)
             plt.pause(2)
+
+
+class ExperimentFlow(Experiment):
+    def __init__(self, model):
+        super().__init__(model)
+        self.compatible_maps = ["any"]
+        self.do_save = True
+
+    def compatible(self):
+        return True
+
+    def load(self):
+        key = 0
+        if os.path.exists(self.data_location + ".npy"):
+            data = np.load(self.data_location + ".npy")
+        else:
+            t = 1000
+            data = np.zeros(shape=(t, *self.model.room.shape))
+        return {key: data}
+
+    def save(self):
+        key = 0
+        data = self.data[key]
+        np.save(self.data_location + ".npy", data)
+
+    def update(self):
+        key = 0
+        data = self.data[key]
+        of = self.model.of
+        t = self.model.schedule.steps
+        if t >= data.shape[0]:
+            _data = np.zeros(shape=(2 * t, *of.shape))
+            _data[:t] = data
+            data = _data
+        data[t] += of
+        self.data[key] = data
+
+    def visualize(self, save=True, show=False):
+        if not self.do_save:
+            return
+        key = 0
+        data = self.data[key]
+        t = data.shape[0]
+        t_max = 0
+        max_n_agents = 0
+        n_runs = -data[0][0][0]
+        print("# of simulations:", n_runs)
+        for i in range(t):
+            n = np.max(data[i])
+            max_n_agents = n if n > max_n_agents else max_n_agents
+            d = np.flip(data[i], axis=0)
+            d[d < 0] = 0
+            if np.sum(d).all() == 0:
+                t_max = i
+                print(t_max)
+                break
+        data = data[:t_max]
+        n_agents = np.sum(data[0] > 0)
+
+        norm = max_n_agents
+
+        fig, ax = plt.subplots(figsize=self.figsize)
+        ax.set_title("Flow at step 0")
+        im = ax.imshow(np.flip(data[0], axis=0), vmin=0, vmax=np.ceil(norm))
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        fig.colorbar(im, orientation="horizontal", ax=ax).set_label("# of visits")
+
+        def animate(i):
+            d = np.flip(data[i], axis=0)
+            d[d < 0] = 0
+            ax.set_title("Flow at step " + str(i))
+            im.set_data(d)
+            return im
+
+        ani = animation.FuncAnimation(fig, animate, frames=t_max)
+        FFwriter = animation.FFMpegWriter(fps=20)
+        ani.save(self.graphs_location + ".mp4", writer=FFwriter)
+
 
