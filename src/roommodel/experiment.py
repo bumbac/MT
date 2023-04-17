@@ -508,3 +508,82 @@ class ExperimentFlow(Experiment):
         ani.save(self.graphs_location + ".mp4", writer=FFwriter)
 
 
+class ExperimentSpecificFlow(Experiment):
+    def __init__(self, model):
+        super().__init__(model)
+        self.compatible_maps = ["any"]
+        self.data_location = self.data_location[:-len(self.name)] + "ExperimentFlow"
+        self.do_save = True
+        self.gates = {
+            "map01.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map02.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map03.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map11.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map12.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map13.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map21.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map22.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map23.txt": [[(18, 13), (18, 14)],
+                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+        }
+
+    def compatible(self):
+        return self.filename in self.gates
+
+    def load(self):
+        return {}
+
+    def update(self):
+        pass
+
+    def save(self):
+        pass
+
+    def visualize(self, save=True, show=False):
+        key = 0
+        data = None
+        if os.path.exists(self.data_location + ".npy"):
+            data = np.load(self.data_location + ".npy")
+        else:
+            raise FileNotFoundError(self.name + " data not found.")
+        t = data.shape[0]
+        t_max = 0
+        max_n_agents = 0
+        n_runs = -data[0][0][0]
+        print("# of simulations:", n_runs)
+        for i in range(t):
+            n = np.max(data[i])
+            max_n_agents = n if n > max_n_agents else max_n_agents
+            d = np.flip(data[i], axis=0)
+            d[d < 0] = 0
+            if np.sum(d).all() == 0:
+                t_max = i
+                print(t_max)
+                break
+        data = data[:t_max]
+        gate_data = []
+        for gate in self.gates[self.filename]:
+            rho = []
+            for i in range(t_max):
+                flow = 0
+                for x, y in gate:
+                    flow += data[i, y, x]
+                rho.append(flow/n_runs)
+            gate_data.append(rho)
+        fig, ax = plt.subplots(figsize=self.figsize)
+        ax.set_title("Specific flow at gates")
+        for i, gd in enumerate(gate_data):
+            ax.plot(gd, label="Gate "+str(i))
+        ax.set_xlabel("Step of the model")
+        ax.set_ylabel("Average flow at gate")
+
+        plt.legend()
+        plt.savefig(self.graphs_location+".png")
