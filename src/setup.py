@@ -53,7 +53,29 @@ if __name__ == '__main__':
                     "./maps/topology/right_turn_short.txt",
                     "./maps/topology/right_turn_short_back.txt"
 
-]
-    for filename in experiments1:
-        batch(filename, 10)
+
+                    # ,
+                    # "./maps/topology/small.txt",
+                    # "./maps/topology/long.txt"
+
+                    ]
+    experiments2 = [
+        "./maps/topology/map01.txt",
+        "./maps/topology/map02.txt",
+        "./maps/topology/map03.txt",
+        "./maps/topology/map11.txt",
+        "./maps/topology/map12.txt",
+        "./maps/topology/map13.txt",
+        "./maps/topology/map21.txt",
+        "./maps/topology/map22.txt",
+        "./maps/topology/map23.txt",
+    ]
+    for filename in experiments2:
+        batch(filename, 1)
+    # filename = experiments2[-1]
+    # filename = "./maps/topology/small.txt"
+    #
     # visualize(filename)
+    # batch(filename, 100)
+
+
