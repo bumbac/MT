@@ -115,7 +115,7 @@ class ExperimentDistanceToLeader(Experiment):
     def __init__(self, model):
         super().__init__(model)
         self.do_show = False
-        self.compatible_maps = ["gaps.txt", "gaps_back.txt", "gaps_short.txt", "right_turn_short.txt"]
+        self.compatible_maps = ["any"]
 
     def compatible(self):
         return True
@@ -466,8 +466,6 @@ class ExperimentFlow(Experiment):
         self.data[key] = data
 
     def visualize(self, save=True, show=False):
-        if not self.do_save:
-            return
         key = 0
         data = self.data[key]
         t = data.shape[0]
@@ -516,23 +514,23 @@ class ExperimentSpecificFlow(Experiment):
         self.do_save = True
         self.gates = {
             "map01.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map02.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map03.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map11.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map12.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map13.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map21.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map22.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map23.txt": [[(18, 13), (18, 14)],
-                      [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
         }
 
     def compatible(self):
@@ -547,7 +545,7 @@ class ExperimentSpecificFlow(Experiment):
     def save(self):
         pass
 
-    def visualize(self, save=True, show=False):
+    def visualize(self, save=False, show=False):
         key = 0
         data = None
         if os.path.exists(self.data_location + ".npy"):
@@ -576,14 +574,97 @@ class ExperimentSpecificFlow(Experiment):
                 flow = 0
                 for x, y in gate:
                     flow += data[i, y, x]
-                rho.append(flow/n_runs)
+                rho.append(flow / n_runs)
             gate_data.append(rho)
         fig, ax = plt.subplots(figsize=self.figsize)
         ax.set_title("Specific flow at gates")
         for i, gd in enumerate(gate_data):
-            ax.plot(gd, label="Gate "+str(i))
+            ax.plot(gd, label="Gate " + str(i))
         ax.set_xlabel("Step of the model")
         ax.set_ylabel("Average flow at gate")
 
         plt.legend()
-        plt.savefig(self.graphs_location+".png")
+        plt.savefig(self.graphs_location + ".png")
+
+
+class ExperimentTET(Experiment):
+    def __init__(self, model):
+        super().__init__(model)
+        self.compatible_maps = ["any"]
+        self.do_save = True
+
+    def compatible(self):
+        return True
+
+    def load(self):
+        key = "TET"
+        key2 = "N_AGENTS"
+        if os.path.exists(self.data_location + ".dat"):
+            with open(self.data_location + ".dat", "rb") as f:
+                return pickle.load(f)
+        else:
+            upper_limit_steps = 1000
+            return {key: [],
+                    key2: [[] for _ in range(upper_limit_steps)]}
+
+    def save(self):
+        key = "TET"
+        key2 = "N_AGENTS"
+        data = self.data
+        n_runs = len(data[key])
+        if n_runs > 0:
+            max_steps = max(data[key])
+        else:
+            max_steps = 0
+        n_steps = self.model.schedule.steps
+        if n_steps < max_steps:
+            for s in range(n_steps, max_steps):
+                # fill remaining steps up to the longest run with zeros
+                data[key2][s].append(0)
+        data[key].append(self.model.schedule.steps)
+        with open(self.data_location + ".dat", "wb") as f:
+            pickle.dump(data, f)
+
+    def update(self):
+        key = "TET"
+        key2 = "N_AGENTS"
+        data = self.data
+        n_runs = len(data[key])
+        if n_runs > 0:
+            max_steps = max(data[key])
+        else:
+            max_steps = 0
+        n_agents = len(self.model.schedule._agents)
+        n_steps = self.model.schedule.steps
+        if n_steps >= max_steps:
+            # double the number of longest run
+            data[key2].extend([[] for _ in range(n_steps)])
+        if len(data[key2][n_steps]) == 0:
+            # this is the longest run, fill other shorter runs with zeros
+            data[key2][n_steps] = [0 for _ in range(n_runs)]
+        # add current number of agents
+        data[key2][n_steps].append(n_agents)
+
+    def visualize(self, save=False, show=False):
+        key = "TET"
+        key2 = "N_AGENTS"
+        data = self.data
+        max_steps = max(data[key])
+        min_steps = min(data[key])
+        bins = max_steps - min_steps
+        if bins < 1:
+            bins = 10
+        n_runs = len(data[key])
+        fig, ax = plt.subplots(figsize=self.figsize)
+        ax.hist(data[key], label=self.filename,
+                bins=bins)
+        plt.title(str(n_runs)
+                  + " simulations: std="
+                  + '%.2f' % np.std(data[key])
+                  + ", avg="
+                  + '%.2f' % np.mean(data[key]))
+        plt.xlabel("TET")
+        plt.legend()
+        if save or self.do_save:
+            plt.savefig(self.graphs_location + ".png")
+            plt.savefig(self.graphs_location + ".pdf")

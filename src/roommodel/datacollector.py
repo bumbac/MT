@@ -33,9 +33,10 @@ class RoomDataCollector(mesa.DataCollector):
             # ExperimentDistanceHeatmap(self.model),
             # ExperimentDistanceToLeader(self.model),
             # ExperimentIncorrectOrientation(self.model),
-            # ExperimentFlow(self.model)
+            # ExperimentFlow(self.model),
             # ExperimentGaps(self.model),
             # ExperimentSpecificFlow(self.model)
+            ExperimentTET(self.model)
         ]
 
     def update(self):
