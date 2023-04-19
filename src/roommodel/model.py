@@ -86,6 +86,7 @@ class RoomModel(mesa.Model):
             self.of[cell.pos[1], cell.pos[0]] = OCCUPIED_CELL
 
     def form_pairs(self):
+        return
         """Solves the pairing of DirectedAgents and replaces the objects in the schedule."""
         # occupancy grid for solitary DirectedAgents
         grid = np.zeros(shape=self.dimensions)

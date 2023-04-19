@@ -69,6 +69,7 @@ class FileLoader:
                 lt = g[1]
                 target = g[2]
                 goals_list.append(GateGoal(model, *lt, target))
+            continue
             if goal_symbol == AREA_GOAL_SYMBOL:
                 lt = g[1][0]
                 rb = g[1][1]
@@ -94,6 +95,7 @@ class FileLoader:
 
     def get_filename(self):
         return self.filename
+
     def load_topology(self):
         if self.filename is None:
             raise FileNotFoundError("Filename for map loading cannot be None.")
@@ -143,7 +145,7 @@ class FileLoader:
             if goal_symbol == GUARD_GOAL_SYMBOL:
                 wait_time = tokens[3]
                 leader_position = tokens[4]
-                location_goal = [GUARD_GOAL_SYMBOL, [lt], wait_time,leader_position, target]
+                location_goal = [GUARD_GOAL_SYMBOL, [lt], wait_time, leader_position, target]
                 self.goals.append(location_goal)
 
     def place_agents(self, model):
@@ -152,20 +154,20 @@ class FileLoader:
         # leader
         for coords in self.pos[LEADER]:
             x, y = coords
-            self.leader = LeaderAgent(model.generate_uid(), model)
+            # self.leader = LeaderAgent(model.generate_uid(), model)
             self.virtual_leader = VirtualLeader(model.generate_uid(), model)
 
-            model.grid.place_agent(self.leader, coords)
+            # model.grid.place_agent(self.leader, coords)
             self.virtual_leader.pos = coords
             model.schedule.add(self.virtual_leader)
-            model.schedule.add(self.leader)
-            self.leader.cell = model.grid[x][y][0]
+            # model.schedule.add(self.leader)
+            # self.leader.cell = model.grid[x][y][0]
             self.virtual_leader.cell = None
-            self.leader.next_cell = self.leader.cell
+            # self.leader.next_cell = self.leader.cell
             self.virtual_leader.next_cell = None
             model.sff_update(model.current_goal().area, "Leader")
-            model.sff_update([coords, coords], "Follower")
-            agent_positions[LEADER].append(coords)
+            model.sff_update(model.current_goal().area, "Follower")
+            # agent_positions[LEADER].append(coords)
 
         for coords in self.pos[DIRECTED]:
             x, y = coords

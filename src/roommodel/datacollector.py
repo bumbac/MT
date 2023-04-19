@@ -81,11 +81,13 @@ class RoomDataCollector(mesa.DataCollector):
         return self.data[key]
 
     def incorrect_orientation(self, uid, cells):
+        return
         for e in self.experiments:
             if e.name == ExperimentIncorrectOrientation.__name__:
                 e.incorrect_orientation(uid, cells)
 
     def incorrect_orientation_selected(self, uid, choice_pos):
+        return
         for e in self.experiments:
             if e.name == ExperimentIncorrectOrientation.__name__:
                 e.incorrect_orientation_selected(uid, choice_pos)

@@ -72,9 +72,9 @@ if __name__ == '__main__':
         batch(filename, n)
 
     # filename = experiments2[-1]
+    # visualize(filename)
     # filename = "./maps/topology/small.txt"
     #
-    # visualize(filename)
     # batch(filename, 100)
 
 

@@ -38,11 +38,12 @@ class Goal:
         if self.model.leader_front_location_switch:
             self.model.sff["Leader"] = self.model.sff["Follower"]
         else:
-            distance, pos = self.model.leader.most_distant()
-            if distance == 0:
-                self.model.sff["Leader"] = self.model.sff["Follower"]
-            else:
-                self.model.sff["Leader"] = self.model.sff[pos]
+            pass
+            # distance, pos = self.model.leader.most_distant()
+            # if distance == 0:
+            #     self.model.sff["Leader"] = self.model.sff["Follower"]
+            # else:
+            #     self.model.sff["Leader"] = self.model.sff[pos]
 
     def center_of_area(self):
         tl, rb = self.area

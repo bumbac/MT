@@ -73,6 +73,8 @@ class Agent(mesa.Agent):
         return abs(d)
 
     def leader_dist(self, start=None):
+        if self.model.leader is None:
+            return 0
         if start is None:
             start = self.pos
         goal = self.model.gate

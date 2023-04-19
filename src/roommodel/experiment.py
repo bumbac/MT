@@ -181,7 +181,7 @@ class ExperimentDistanceToLeader(Experiment):
             plt.pause(1)
 
         data = self.data[key]
-        del data[self.model.leader.unique_id]
+        # del data[self.model.leader.unique_id]
         del data[self.model.virtual_leader.unique_id]
         fig, ax = plt.subplots(figsize=self.figsize)
         y = []
@@ -230,7 +230,7 @@ class ExperimentGaps(Experiment):
         if key not in self.data:
             self.data[key] = {uid: [] for uid in self.model.schedule.get_agents()}
             self.data[key][-1] = True
-            del self.data[key][self.model.leader.unique_id]
+            # del self.data[key][self.model.leader.unique_id]
             del self.data[key][self.model.virtual_leader.unique_id]
         event_data = self.model.datacollector.get_events()
         if len(event_data) < 1:
