@@ -181,7 +181,9 @@ class DirectedPartnerAgent(DirectedAgent):
         if self.pos == self.partner.partner_coords():
             self.partner.leader = True
             return False
-        raise ValueError("Leader error, partner is incompatible.")
+        print("Leader, partner error. Stopping simulation.")
+        self.model.running = False
+        # raise ValueError("Leader error, partner is incompatible.")
 
     def add_partner(self, partner):
         """Add a partner to form directed agent pair. Updates states, leadership, orientation.

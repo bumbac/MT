@@ -44,7 +44,8 @@ def visualize(filename):
 
 
 if __name__ == '__main__':
-    experiments1 = ["./maps/topology/gaps.txt",
+    experiments1 = [
+                    "./maps/topology/gaps.txt",
                     "./maps/topology/gaps_back.txt",
 
                     "./maps/topology/gaps_short.txt",
@@ -52,12 +53,6 @@ if __name__ == '__main__':
 
                     "./maps/topology/right_turn_short.txt",
                     "./maps/topology/right_turn_short_back.txt"
-
-
-                    # ,
-                    # "./maps/topology/small.txt",
-                    # "./maps/topology/long.txt"
-
                     ]
     experiments2 = [
         "./maps/topology/map01.txt",
@@ -70,8 +65,12 @@ if __name__ == '__main__':
         "./maps/topology/map22.txt",
         "./maps/topology/map23.txt",
     ]
+    n = 1
+    for filename in experiments1:
+        batch(filename, n)
     for filename in experiments2:
-        batch(filename, 1)
+        batch(filename, n)
+
     # filename = experiments2[-1]
     # filename = "./maps/topology/small.txt"
     #

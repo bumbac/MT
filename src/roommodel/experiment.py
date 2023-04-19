@@ -19,7 +19,7 @@ FIGSIZEWIDE = (20, 5)
 FIGSIZE4_3 = (8, 6)
 
 location = "./out/"
-matplotlib.use('tkagg')
+# matplotlib.use('tkagg')
 
 
 def minmax_norm(arr):
@@ -48,6 +48,7 @@ class Experiment:
             self.name = name
         else:
             self.name = self.__class__.__name__
+        self.counter = None
         self.data_location = self.data_location + self.name
         self.graphs_location = self.graphs_location + self.name
         self.data = self.load()
@@ -75,11 +76,17 @@ class Experiment:
     def visualize(self, save=True, show=False):
         pass
 
+    def n_sims(self):
+        ctr = self.model.datacollector.counter
+        if self.name in ctr:
+            return str(ctr[self.name])
+        else:
+            return str(1)
+
 
 class ExperimentDistanceHeatmap(Experiment):
     def __init__(self, model):
         super().__init__(model)
-        self.do_show = False
 
     def compatible(self):
         return True
@@ -98,7 +105,7 @@ class ExperimentDistanceHeatmap(Experiment):
         data = self.data[key]
         data = np.flip(data, axis=0)
         fig, ax = plt.subplots(figsize=self.figsize)
-        plt.title("Frequency of occupied cells")
+        plt.title("Frequency of occupied cells, " + self.n_sims() + " simulations")
         ax.imshow(data)
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
@@ -114,7 +121,6 @@ class ExperimentDistanceHeatmap(Experiment):
 class ExperimentDistanceToLeader(Experiment):
     def __init__(self, model):
         super().__init__(model)
-        self.do_show = False
         self.compatible_maps = ["any"]
 
     def compatible(self):
@@ -161,9 +167,10 @@ class ExperimentDistanceToLeader(Experiment):
             pos_ctr += 1
         plt.xlabel("Ranked averaged distance to leader")
         plt.ylabel("Distance to leader")
+        plt.title(self.n_sims() + " simulations")
         pos_ctr = 1
         for uid, pos in x_pos:
-            ax.scatter(pos_ctr, data[uid][0])
+            # ax.scatter(pos_ctr, data[uid][0])
             pos_ctr += 1
         # ax.xaxis.set_major_formatter(plt.FormatStrFormatter('%.2f'))
         if save or self.do_save:
@@ -192,7 +199,7 @@ class ExperimentDistanceToLeader(Experiment):
             ax.plot(data[uid], c=y.pop())
         plt.xlabel("Step of model")
         plt.ylabel("Distance to leader")
-        plt.title("Rolling average, window size 2")
+        plt.title("Rolling average, window size 2, " + self.n_sims() + " simulations")
 
         if save or self.do_save:
             plt.savefig(self.graphs_location + "Plot.png")
@@ -205,15 +212,18 @@ class ExperimentDistanceToLeader(Experiment):
 class ExperimentGaps(Experiment):
     def __init__(self, model):
         super().__init__(model)
-        self.do_save = True
-        self.do_show = False
         self.compatible_maps = ["gaps.txt", "gaps_back.txt"]
+                                # "gaps_short.txt", "gaps_short_back.txt"]
+        self.distances = None
 
     def load(self):
         return {}
 
     def save(self):
-        pass
+        self.distances = self.finalize()
+        if self.do_save:
+            with open(self.data_location + ".dat", "wb") as f:
+                pickle.dump(self.distances, f)
 
     def update(self):
         key = 0
@@ -252,7 +262,7 @@ class ExperimentGaps(Experiment):
                 leader_ctr.append(data[uid][0][2])
         leader_starts = {uid: [] for uid in leader_uids}
         n_dist = len(leader_starts)
-        test_length = 100
+        test_length = 60
         for uid in leader_uids:
             for item in data[uid]:
                 leader, partner, ctr = item
@@ -269,22 +279,25 @@ class ExperimentGaps(Experiment):
                     continue
                 else:
                     p.append(leader_starts[uid][i])
+            if len(p) == 0:
+                continue
             p = sorted(p)
-            low_p = p[0]
-            for j, pp in enumerate(p):
-                distances[j].append(pp - low_p)
+            distances[0].append(0)
+            for j in range(1, len(p)):
+                current = p[j]
+                previous = p[j-1]
+                distances[j].append(current - previous)
         return distances
 
     def visualize(self, save=False, show=False):
-        distances = self.finalize()
-        if self.do_save:
-            with open(self.data_location + ".dat", "wb") as f:
-                pickle.dump(distances, f)
-
+        distances = self.distances
+        if distances is None:
+            return
         fig, axs = plt.subplots(nrows=4, ncols=1, figsize=self.figsize, sharex="col")
+        axs[0].set_title(self.n_sims() + " simulations")
         for i, array in enumerate(distances):
             axs[i].hist(array)
-        plt.xlabel("Distance to the paired agents at the front")
+        plt.xlabel("Distance to the previous paired agents")
         if save or self.do_save:
             plt.savefig(self.graphs_location + ".png")
             plt.savefig(self.graphs_location + ".pdf")
@@ -297,9 +310,7 @@ class ExperimentGaps(Experiment):
 class ExperimentIncorrectOrientation(Experiment):
     def __init__(self, model):
         super().__init__(model)
-        self.compatible_maps = ["gaps.txt", "gaps_back.txt", "gaps_short.txt", "gaps_short_back.txt",
-                                "right_turn_short.txt", "right_turn_short_back.txt"]
-        self.do_show = False
+        self.compatible_maps = ["any"]
 
     def compatible(self):
         return True
@@ -373,7 +384,7 @@ class ExperimentIncorrectOrientation(Experiment):
 
         fig, ax = plt.subplots(figsize=self.figsize)
         data = np.flip(data, axis=0)
-        ax.set_title("Frequency of Incorrect Orientation Maneuvers")
+        ax.set_title("Frequency of Incorrect Orientation Maneuvers, " + self.n_sims() + " simulations")
         ax.imshow(data)
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
@@ -388,6 +399,7 @@ class ExperimentIncorrectOrientation(Experiment):
         fig, ax = plt.subplots(figsize=self.figsize)
         ax.set_xlabel("Distance to Leader")
         ax.set_ylabel("Penalization")
+        plt.title(self.n_sims() + " simulations")
         trailing_end = 0
         total = data2[1][1:]
         for i in range(len(total)):
@@ -401,6 +413,7 @@ class ExperimentIncorrectOrientation(Experiment):
         plt.xticks(xticks)
         if save or self.do_save:
             plt.savefig(self.graphs_location + "Penalization.png")
+            plt.savefig(self.graphs_location + "Penalization.pdf")
         if show or self.do_show:
             plt.show(block=False)
             plt.pause(2)
@@ -420,11 +433,13 @@ class ExperimentIncorrectOrientation(Experiment):
         ax.set_xlabel("Distance to Leader")
         ax.set_ylabel("Ratio")
         ax.plot(xticks, hits / total, label="Incorrect m. out of all m.")
+        plt.title(self.n_sims() + " simulations")
         plt.xticks(xticks)
         plt.legend()
 
         if save or self.do_save:
             plt.savefig(self.graphs_location + "Ratio.png")
+            plt.savefig(self.graphs_location + "Ratio.pdf")
         if show or self.do_show:
             plt.show(block=False)
             plt.pause(2)
@@ -434,7 +449,6 @@ class ExperimentFlow(Experiment):
     def __init__(self, model):
         super().__init__(model)
         self.compatible_maps = ["any"]
-        self.do_save = True
 
     def compatible(self):
         return True
@@ -509,9 +523,8 @@ class ExperimentFlow(Experiment):
 class ExperimentSpecificFlow(Experiment):
     def __init__(self, model):
         super().__init__(model)
-        self.compatible_maps = ["any"]
+        self.compatible_maps = ["see self.gates"]
         self.data_location = self.data_location[:-len(self.name)] + "ExperimentFlow"
-        self.do_save = True
         self.gates = {
             "map01.txt": [[(18, 13), (18, 14)],
                           [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
@@ -526,11 +539,14 @@ class ExperimentSpecificFlow(Experiment):
             "map13.txt": [[(18, 13), (18, 14)],
                           [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
             "map21.txt": [[(18, 13), (18, 14)],
-                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)],
+                          [(58, 6), (59, 6), (60, 6), (61, 6), (62, 6)]],
             "map22.txt": [[(18, 13), (18, 14)],
-                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)],
+                          [(58, 6), (59, 6), (60, 6), (61, 6), (62, 6)]],
             "map23.txt": [[(18, 13), (18, 14)],
-                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)],
+                          [(58, 6), (59, 6), (60, 6), (61, 6), (62, 6)]],
         }
 
     def compatible(self):
@@ -577,7 +593,7 @@ class ExperimentSpecificFlow(Experiment):
                 rho.append(flow / n_runs)
             gate_data.append(rho)
         fig, ax = plt.subplots(figsize=self.figsize)
-        ax.set_title("Specific flow at gates")
+        ax.set_title("Specific flow at gates, " + self.n_sims() + " simulations")
         for i, gd in enumerate(gate_data):
             ax.plot(gd, label="Gate " + str(i))
         ax.set_xlabel("Step of the model")
@@ -585,13 +601,13 @@ class ExperimentSpecificFlow(Experiment):
 
         plt.legend()
         plt.savefig(self.graphs_location + ".png")
+        plt.savefig(self.graphs_location + ".pdf")
 
 
 class ExperimentTET(Experiment):
     def __init__(self, model):
         super().__init__(model)
         self.compatible_maps = ["any"]
-        self.do_save = True
 
     def compatible(self):
         return True
@@ -658,7 +674,7 @@ class ExperimentTET(Experiment):
         fig, ax = plt.subplots(figsize=self.figsize)
         ax.hist(data[key], label=self.filename,
                 bins=bins)
-        plt.title(str(n_runs)
+        plt.title(self.n_sims()
                   + " simulations: std="
                   + '%.2f' % np.std(data[key])
                   + ", avg="
