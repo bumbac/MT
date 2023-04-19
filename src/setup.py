@@ -65,13 +65,24 @@ if __name__ == '__main__':
         "./maps/topology/map22.txt",
         "./maps/topology/map23.txt",
     ]
+    experiments3 = [
+        "./maps/topology/map01_mirror.txt",
+        "./maps/topology/map02_mirror.txt",
+        "./maps/topology/map03_mirror.txt",
+        "./maps/topology/map11_mirror.txt",
+        "./maps/topology/map12_mirror.txt",
+        "./maps/topology/map13_mirror.txt",
+        "./maps/topology/map21_mirror.txt",
+        "./maps/topology/map22_mirror.txt",
+        "./maps/topology/map23_mirror.txt",
+    ]
     n = 1
-    for filename in experiments1:
-        batch(filename, n)
-    for filename in experiments2:
+    # for filename in experiments1:
+    #     batch(filename, n)
+    for filename in experiments3:
         batch(filename, n)
 
-    # filename = experiments2[-1]
+    # filename = experiments3[1]
     # filename = "./maps/topology/small.txt"
     #
     # visualize(filename)
