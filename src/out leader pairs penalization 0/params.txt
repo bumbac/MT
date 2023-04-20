@@ -1,0 +1,7 @@
+ks 3
+ko 0
+kd 0.0
+leader_movement_duration 2
+agent_movement_duration 3
+penalization_orientation 0
+leader_front_location_switch true
