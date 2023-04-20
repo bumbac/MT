@@ -77,9 +77,10 @@ if __name__ == '__main__':
         "./maps/topology/map23_mirror.txt",
     ]
     n = 1
-    # for filename in experiments1:
-    #     batch(filename, n)
-    for filename in experiments3:
+    # POZOR NA PENALIZATU
+    for filename in experiments1:
+        batch(filename, n)
+    for filename in experiments2:
         batch(filename, n)
 
     # filename = experiments3[1]

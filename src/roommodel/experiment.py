@@ -106,9 +106,12 @@ class ExperimentDistanceHeatmap(Experiment):
         data = np.flip(data, axis=0)
         fig, ax = plt.subplots(figsize=self.figsize)
         plt.title("Frequency of occupied cells, " + self.n_sims() + " simulations")
-        ax.imshow(data)
+        n_runs = int(self.n_sims())
+        im = ax.imshow(data/n_runs)
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
+        fig.colorbar(im, orientation="horizontal", ax=ax).set_label("# of visits")
+
 
         if save or self.do_save:
             plt.savefig(self.graphs_location + ".png")
@@ -355,7 +358,7 @@ class ExperimentIncorrectOrientation(Experiment):
     def load(self):
         key = "incorrect_orientation_selected"
         key2 = "incorrect_orientation_distance"
-        max_distance = 50
+        max_distance = 100
         data = np.zeros_like(self.model.room)
         data2 = np.zeros((3, max_distance))
         if os.path.exists(self.data_location + "_selected.npy"):
@@ -385,9 +388,11 @@ class ExperimentIncorrectOrientation(Experiment):
         fig, ax = plt.subplots(figsize=self.figsize)
         data = np.flip(data, axis=0)
         ax.set_title("Frequency of Incorrect Orientation Maneuvers, " + self.n_sims() + " simulations")
-        ax.imshow(data)
+        n_runs = int(self.n_sims())
+        im = ax.imshow(data / n_runs)
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
+        fig.colorbar(im, orientation="horizontal", ax=ax).set_label("# of incorrect maneuvers")
 
         if save or self.do_save:
             plt.savefig(self.graphs_location + "Heatmap.png")
@@ -547,6 +552,16 @@ class ExperimentSpecificFlow(Experiment):
             "map23.txt": [[(18, 13), (18, 14)],
                           [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)],
                           [(58, 6), (59, 6), (60, 6), (61, 6), (62, 6)]],
+
+            "map01_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map02_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map03_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map11_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map12_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map13_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)]],
+            "map21_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)],                          [(58, 6), (59, 6), (60, 6), (61, 6), (62, 6)]],
+            "map22_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)],                          [(58, 6), (59, 6), (60, 6), (61, 6), (62, 6)]],
+            "map23_mirror.txt": [[(18, 13), (18, 14)],                          [(50, 11), (50, 12), (50, 13), (50, 14), (50, 15)],                          [(58, 6), (59, 6), (60, 6), (61, 6), (62, 6)]],
         }
 
     def compatible(self):
