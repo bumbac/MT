@@ -45,15 +45,13 @@ def visualize(filename):
 
 if __name__ == '__main__':
     experiments1 = [
-                    "./maps/topology/gaps.txt",
-                    "./maps/topology/gaps_back.txt",
-
-                    "./maps/topology/gaps_short.txt",
-                    "./maps/topology/gaps_short_back.txt",
-
-                    "./maps/topology/right_turn_short.txt",
-                    "./maps/topology/right_turn_short_back.txt"
-                    ]
+        "./maps/topology/gaps.txt",
+        "./maps/topology/gaps_back.txt",
+        "./maps/topology/gaps_short.txt",
+        "./maps/topology/gaps_short_back.txt",
+        "./maps/topology/right_turn_short.txt",
+        "./maps/topology/right_turn_short_back.txt"
+    ]
     experiments2 = [
         "./maps/topology/map01.txt",
         "./maps/topology/map02.txt",
@@ -76,17 +74,31 @@ if __name__ == '__main__':
         "./maps/topology/map22_mirror.txt",
         "./maps/topology/map23_mirror.txt",
     ]
+    experimentsOPT = [
+        "./maps/topology/optimal/map01.txt",
+        "./maps/topology/optimal/map02.txt",
+        "./maps/topology/optimal/map03.txt",
+        "./maps/topology/optimal/map11.txt",
+        "./maps/topology/optimal/map12.txt",
+        "./maps/topology/optimal/map13.txt",
+        "./maps/topology/optimal/map21.txt",
+        "./maps/topology/optimal/map22.txt",
+        "./maps/topology/optimal/map23.txt",
+    ]
     n = 1
     # POZOR NA PENALIZATU
-    for filename in experiments1:
-        batch(filename, n)
+    # for filename in experiments1:
+        # batch(filename, n)
     for filename in experiments2:
         batch(filename, n)
-
-    # filename = experiments3[1]
+    # for filename in experimentsOPT:
+    # batch(filename, n)
+    for filename in ["./maps/topology/map23.txt"]:
+        batch(filename, n)
+    # filename = "./maps/topology/map13.txt"
     # filename = "./maps/topology/small.txt"
     #
     # visualize(filename)
-    # batch(filename, 100)
+    # # batch(filename, 100)
 
 

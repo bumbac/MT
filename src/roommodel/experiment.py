@@ -334,7 +334,7 @@ class ExperimentIncorrectOrientation(Experiment):
     def incorrect_orientation_selected(self, uid, choice_pos):
         key = "incorrect_orientation_selected"
         key2 = "incorrect_orientation_distance"
-        max_distance = 100
+        max_distance = 50
         if key not in self.data:
             self.data[key] = np.zeros_like(self.model.room)
         if key2 not in self.data:
@@ -358,7 +358,7 @@ class ExperimentIncorrectOrientation(Experiment):
     def load(self):
         key = "incorrect_orientation_selected"
         key2 = "incorrect_orientation_distance"
-        max_distance = 100
+        max_distance = 50
         data = np.zeros_like(self.model.room)
         data2 = np.zeros((3, max_distance))
         if os.path.exists(self.data_location + "_selected.npy"):
@@ -599,13 +599,14 @@ class ExperimentSpecificFlow(Experiment):
                 break
         data = data[:t_max]
         gate_data = []
+        cell_size_norm = 0.4*0.4
         for gate in self.gates[self.filename]:
             rho = []
             for i in range(t_max):
                 flow = 0
                 for x, y in gate:
                     flow += data[i, y, x]
-                rho.append(flow / n_runs)
+                rho.append(flow / n_runs / (len(gate)*cell_size_norm))
             gate_data.append(rho)
         fig, ax = plt.subplots(figsize=self.figsize)
         ax.set_title("Specific flow at gates, " + self.n_sims() + " simulations")
