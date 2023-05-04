@@ -52,7 +52,7 @@ class LeaderAgent(Agent):
         The value is used to control the speed of Leader and Virtual leader.
 
         Returns:
-            (int, (int, int)): Manhattan distance and xy coordinates of most distant agent.
+            (int, (int, int)): SFF distance and xy coordinates of most distant agent.
 
         """
         distances = []

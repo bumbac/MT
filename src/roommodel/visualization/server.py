@@ -5,11 +5,7 @@ from ..model import RoomModel
 from ..file_loader import FileLoader
 
 
-def get_model_step(model):
-    return f"Model step: {model.schedule.steps}"
-
-
-filename = "./maps/topology/gaps.txt"
+filename = "./maps/topology/10V.txt"
 filename = os.path.abspath(filename)
 fl = FileLoader(filename)
 canvas = fl.get_canvas(1080)
