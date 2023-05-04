@@ -599,7 +599,7 @@ class ExperimentSpecificFlow(Experiment):
                 break
         data = data[:t_max]
         gate_data = []
-        cell_size_norm = 0.4*0.4
+        cell_size_norm = 0.4
         for gate in self.gates[self.filename]:
             rho = []
             for i in range(t_max):
