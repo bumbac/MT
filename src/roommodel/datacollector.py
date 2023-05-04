@@ -11,14 +11,15 @@ class RoomDataCollector(mesa.DataCollector):
         self.model = model
         self.__name__ = "RoomDataCollector " + str(self.model.generate_uid())
         self.data = {}
+        # uncomment the experiments you want to test
         self.experiments = [
-            ExperimentDistanceHeatmap(self.model),
-            ExperimentDistanceToLeader(self.model),
-            ExperimentIncorrectOrientation(self.model),
-            ExperimentFlow(self.model),
-            ExperimentGaps(self.model),
-            ExperimentSpecificFlow(self.model),
-            ExperimentTET(self.model)
+            # ExperimentDistanceHeatmap(self.model),
+            # ExperimentDistanceToLeader(self.model),
+            # ExperimentIncorrectOrientation(self.model),
+            # ExperimentFlow(self.model),
+            # ExperimentGaps(self.model),
+            # ExperimentSpecificFlow(self.model),
+            # ExperimentTET(self.model)
         ]
         self.counter = None
 
@@ -34,6 +35,7 @@ class RoomDataCollector(mesa.DataCollector):
         self.update_experiment_counter()
 
     def visualize(self):
+        # uncomment the return to skip the visualization part - it takes a lot of time
         # return
         for experiment in self.experiments:
             if experiment.compatible():

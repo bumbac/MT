@@ -7,6 +7,8 @@ from roommodel.file_loader import FileLoader
 
 
 def batch(filename, n=10):
+    # this method runs n simulations of filename map. The global parameters can be set in the declaration of model
+    # variable
     filename = os.path.abspath(filename)
     fl = FileLoader(filename)
     print("\t", filename)
@@ -19,9 +21,14 @@ def batch(filename, n=10):
 
 
 def visualize(filename):
+    # this method starts a web browser visualization of simulation in filename map
+    # the global parameters can be set in model_params
     filename = os.path.abspath(filename)
     fl = FileLoader(filename)
+    # model visualization resolution
     canvas = fl.get_canvas(1080)
+    # global parameters, the values are:
+    # default value, bottom range, upper range, size of step
     model_params = {
         "ks": mesa.visualization.Slider("Sensitivity to static potential kS", 3, 1.0, 10.0, 0.5),
         "ko": mesa.visualization.Slider("Sensitivity to occupied cell kO", 0.0, 0.0, 1.0, 0.1),
@@ -39,11 +46,14 @@ def visualize(filename):
         "Room Model",
         model_params,
     )
-    server.port = 8521  # The default
+    server.port = 8521  # The default port
     server.launch()
 
 
 if __name__ == '__main__':
+    # filename examples of provided maps
+
+    # simple situations for analyzing the movement of pairs
     experiments1 = [
         "./maps/topology/gaps.txt",
         "./maps/topology/gaps_back.txt",
@@ -52,6 +62,8 @@ if __name__ == '__main__':
         "./maps/topology/right_turn_short.txt",
         "./maps/topology/right_turn_short_back.txt"
     ]
+
+    # complex maps with various scenarios
     experiments2 = [
         "./maps/topology/map01.txt",
         "./maps/topology/map02.txt",
@@ -63,6 +75,8 @@ if __name__ == '__main__':
         "./maps/topology/map22.txt",
         "./maps/topology/map23.txt",
     ]
+
+    # mirrored maps with scenarios
     experiments3 = [
         "./maps/topology/map01_mirror.txt",
         "./maps/topology/map02_mirror.txt",
@@ -74,31 +88,10 @@ if __name__ == '__main__':
         "./maps/topology/map22_mirror.txt",
         "./maps/topology/map23_mirror.txt",
     ]
-    experimentsOPT = [
-        "./maps/topology/optimal/map01.txt",
-        "./maps/topology/optimal/map02.txt",
-        "./maps/topology/optimal/map03.txt",
-        "./maps/topology/optimal/map11.txt",
-        "./maps/topology/optimal/map12.txt",
-        "./maps/topology/optimal/map13.txt",
-        "./maps/topology/optimal/map21.txt",
-        "./maps/topology/optimal/map22.txt",
-        "./maps/topology/optimal/map23.txt",
-    ]
-    n = 1
-    # POZOR NA PENALIZATU
+    filename = "./maps/topology/map22.txt"
+    visualize(filename)
+    # n = 1
     # for filename in experiments1:
-        # batch(filename, n)
-    for filename in experiments2:
-        batch(filename, n)
-    # for filename in experimentsOPT:
-    # batch(filename, n)
-    for filename in ["./maps/topology/map23.txt"]:
-        batch(filename, n)
-    # filename = "./maps/topology/map13.txt"
-    # filename = "./maps/topology/small.txt"
-    #
-    # visualize(filename)
-    # # batch(filename, 100)
-
-
+    #     batch(filename, n)
+    # for filename in experiments2:
+    #     batch(filename, n)
