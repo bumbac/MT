@@ -18,3 +18,18 @@ run in the same folder as `maps`.
    1. In the `main` function can be uncommented either batch runs (for experiments)
    or visualizations for running the simulation in web browser. You can adjust 
    the global parameters in the `setup.py` or you can use the sliders in visualization.
+
+
+# Structure
+
+- `docs` relevant research materials
+- `report` source code for Latex
+- `src` source code for model, graphs, maps, data
+   - `roommodel` source code for model
+   - `out` folder where graphs and data from experiments are stored
+   - `out XY` several folders with graphs and data from experiments described in thesis
+   - `maps` definition of maps topology and the precomputed SFF, you can create your own maps here
+   - `requirements.txt` export of libraries used for the model
+   - `params.txt` export of global parameters
+   - `setup.py` main file used for running the simulation model
+   - `testing.ipynb` Jupyter notebook for testing
